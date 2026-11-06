@@ -1,0 +1,22 @@
+# Cargo workspace root.
+#
+# It lives at the repo root rather than under contracts/ because tests/integration is a
+# sibling of contracts/, and a workspace member has to sit below its workspace root for
+# `version.workspace = true` style inheritance to resolve.
+[workspace]
+resolver = "2"
+members = ["contracts/ual", "tests/integration"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/Yatharth4599/krexa-agent-ledger"
+
+[profile.release]
+codegen-units = 1
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true

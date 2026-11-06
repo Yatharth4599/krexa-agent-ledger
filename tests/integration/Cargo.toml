@@ -1,0 +1,20 @@
+[package]
+name = "integration"
+description = "near-workspaces sandbox tests for the UAL contract, including the function-call key denial proofs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+
+[dev-dependencies]
+near-workspaces = "0.24"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+anyhow = "1"
+serde_json = "1"
+ed25519-dalek = "2"
+bs58 = "0.5"
+hex = "0.4"
+# Deliberately no near-sdk here. Its build guard refuses a plain `cargo build` outside
+# cargo-near, and these tests talk to the deployed wasm over RPC, so they need none of it.

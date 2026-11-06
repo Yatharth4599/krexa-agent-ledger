@@ -27,3 +27,7 @@ data/alpha-arena/raw/
 !docs/attack-demo.log
 .pnpm-store/
 coverage/
+
+# cargo workspace target at repo root
+/target/
+contracts/target/

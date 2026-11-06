@@ -9,17 +9,18 @@
   },
   "scripts": {
     "build": "pnpm -r --filter \"./packages/**\" build",
-    "test": "pnpm run test:rust && pnpm run test:ts",
-    "test:rust": "cargo test --workspace --manifest-path contracts/Cargo.toml",
+    "test": "pnpm run test:rust && pnpm run test:sandbox && pnpm run test:ts",
+    "test:rust": "cargo test -p ual",
     "test:ts": "pnpm -r --if-present test",
-    "test:sandbox": "echo \"not built yet (M2)\" && exit 1",
+    "test:sandbox": "pnpm run build:contract && cargo test -p integration",
     "demo": "echo \"not built yet (M2)\" && exit 1",
     "web": "echo \"not built yet (M6)\" && exit 1",
     "ebi:report": "echo \"not built yet (M5)\" && exit 1",
-    "lint": "cargo clippy --workspace --manifest-path contracts/Cargo.toml -- -D warnings",
-    "fmt": "cargo fmt --manifest-path contracts/Cargo.toml --all",
+    "lint": "cargo clippy --workspace --all-targets -- -D warnings",
+    "fmt": "cargo fmt --all",
     "secrets": "gitleaks detect --no-banner --redact",
-    "typecheck": "pnpm -r --if-present typecheck"
+    "typecheck": "pnpm -r --if-present typecheck",
+    "build:contract": "cargo near build non-reproducible-wasm --manifest-path contracts/ual/Cargo.toml"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

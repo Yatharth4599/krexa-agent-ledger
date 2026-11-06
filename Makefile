@@ -17,7 +17,7 @@ build:
 test: test-rust test-ts
 
 test-rust:
-	cargo test --workspace --manifest-path contracts/Cargo.toml
+	cargo test -p ual
 
 test-ts:
 	pnpm -r test
@@ -32,12 +32,12 @@ secrets:
 	gitleaks detect --no-banner --redact
 
 fmt:
-	cargo fmt --manifest-path contracts/Cargo.toml --all
+	cargo fmt --all
 	pnpm -r exec prettier --write . || true
 
 lint:
-	cargo clippy --workspace --manifest-path contracts/Cargo.toml -- -D warnings
+	cargo clippy --workspace --all-targets -- -D warnings
 
 clean:
-	cargo clean --manifest-path contracts/Cargo.toml
+	cargo clean
 	rm -rf node_modules packages/*/node_modules apps/*/node_modules
