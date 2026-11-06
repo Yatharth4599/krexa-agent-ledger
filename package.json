@@ -13,7 +13,7 @@
     "test:rust": "cargo test -p ual",
     "test:ts": "pnpm -r --if-present test",
     "test:sandbox": "pnpm run build:contract && cargo test -p integration",
-    "demo": "echo \"not built yet (M2)\" && exit 1",
+    "demo": "bash scripts/demo.sh",
     "web": "echo \"not built yet (M6)\" && exit 1",
     "ebi:report": "echo \"not built yet (M5)\" && exit 1",
     "lint": "cargo clippy --workspace --all-targets -- -D warnings",
@@ -21,10 +21,5 @@
     "secrets": "gitleaks detect --no-banner --redact",
     "typecheck": "pnpm -r --if-present typecheck",
     "build:contract": "cargo near build non-reproducible-wasm --manifest-path contracts/ual/Cargo.toml"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
   }
 }

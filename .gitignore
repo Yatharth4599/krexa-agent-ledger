@@ -31,3 +31,4 @@ coverage/
 # cargo workspace target at repo root
 /target/
 contracts/target/
+.sandbox/

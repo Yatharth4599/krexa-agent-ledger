@@ -83,6 +83,11 @@ say "contract build"
 cargo near build non-reproducible-wasm --manifest-path contracts/ual/Cargo.toml
 
 say ""
+say "sandbox node"
+# Cached under .sandbox/. See scripts/fetch-sandbox.sh for why the bundled one will not do.
+./scripts/fetch-sandbox.sh >/dev/null && ok "near-sandbox (neard 2.14.0) ready"
+
+say ""
 say "setup done. Next:"
-say "  pnpm test    rust unit + sandbox integration + TS tests"
+say "  pnpm test    67 Rust unit + 15 sandbox integration + 102 TypeScript tests"
 say "  pnpm demo    local sandbox end to end, no keys needed"

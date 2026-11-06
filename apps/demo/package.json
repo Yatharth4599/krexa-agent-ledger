@@ -1,0 +1,21 @@
+{
+  "name": "@krexa-ual/demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "One command that runs the whole evidence gate on a local NEAR sandbox, with no keys",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@krexa-ual/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "near-workspaces": "^4",
+    "tsx": "^4",
+    "typescript": "^5"
+  }
+}

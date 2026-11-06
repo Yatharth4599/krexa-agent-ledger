@@ -88,7 +88,8 @@ pub fn now_ns() -> u64 {
 
 pub fn wasm_path() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../contracts/target/near/ual/ual.wasm")
+        // cargo-near writes under the workspace root, which is the repo root.
+        .join("../../target/near/ual/ual.wasm")
 }
 
 pub fn load_wasm() -> Result<Vec<u8>> {

@@ -27,7 +27,7 @@ This section is updated at every milestone and states only what actually runs.
 | Milestone | What it covers | State |
 |---|---|---|
 | M1 | Canonical JSON and hash test vectors, contract core, policy commit, evidence gate, hash chain, kill switch | **done**: 67 Rust tests, 57 TypeScript tests, wasm builds |
-| M2 | Sandbox integration tests, SDK, evidence fetcher, testnet deploy, data archive, `pnpm demo` | not started |
+| M2 | Sandbox integration tests, SDK, testnet deploy, `pnpm demo` | **mostly done**: 15 sandbox tests, SDK, testnet contract live, `pnpm demo` green. Evidence fetcher app and the data archive recorder are still to come. |
 | M3 | Deterministic verifier, agent runtime, desks `plain` and `ebi` | not started |
 | M4 | Replay harness, attack injector, `debate` and `hier` desks, pilot run | not started |
 | M5 | Full runs and scorecard metrics | not started |
@@ -40,15 +40,21 @@ testnet only.
 
 ## Quick start for AI judges
 
-Partly ready. These two work now, with no keys and no manual steps:
+These three work now, with no keys and no manual steps:
 
 ```bash
 git clone https://github.com/Yatharth4599/krexa-agent-ledger && cd krexa-agent-ledger
-./scripts/setup.sh      # checks toolchain, pnpm install, builds the contract
-pnpm test               # 67 Rust unit tests + 57 TypeScript cross-language tests
+./scripts/setup.sh      # checks toolchain, pnpm install, builds the contract, fetches a sandbox node
+pnpm test               # 67 Rust unit + 15 near-workspaces sandbox + 102 TypeScript tests
+pnpm demo               # local sandbox end to end: policy, evidence gate, attack blocked, kill switch, chain verify
 ```
 
-The full five-command sequence, once M2 to M6 land:
+`pnpm demo` exits non-zero if any assertion fails, so it is a test as much as a demonstration.
+
+Deployed testnet contract: [`ual.krexa-ual.testnet`](https://testnet.nearblocks.io/address/ual.krexa-ual.testnet)
+(`code sha256 0f204817adeadae8bbd6fd13a7c6485828bd42e94156a16d99aa53c077461e3c` at first deploy).
+
+The full five-command sequence, once M3 to M6 land:
 
 ```bash
 git clone https://github.com/Yatharth4599/krexa-agent-ledger && cd krexa-agent-ledger
