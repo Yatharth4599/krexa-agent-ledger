@@ -129,9 +129,23 @@ No mainnet transactions. No live orders. No signing with funded keys. Live code 
 
 ## Prior work and differentiation
 
-This builds on existing work and is not claimed as a first. See [SPEC.md section 13](SPEC.md) for the
-comparison table (AlphaGrid, ScriptSamurai, ERC-8004, OutLayer, TruCore ATF, and the academic
-trading-agent robustness literature).
+This builds on existing work and is not claimed as a first. The two papers that motivate it
+have been read and quoted exactly in [docs/PRIOR_WORK.md](docs/PRIOR_WORK.md), which also
+records three places where the prior work changes our own plan:
+
+- arXiv 2610.26438 reports prompt injection at 14% attack success rate and fabricated news at
+  62%, "inverting the usual LLM-security intuition". Both figures check out.
+- The same paper reports that "peer debate fails, and only hierarchical aggregation reduces
+  ASR", which **contradicts half of the hypothesis SPEC.md 2A.6 states**. H2 is restated
+  accordingly, and the interesting comparison becomes the evidence gate against hierarchical
+  aggregation rather than against an undefended agent.
+- arXiv 2609.19705 (FARSIGHT) urges deployers to "corroborate sources, keep interrupts that
+  bypass the model, and enforce loss limits outside it". This build does all three. That is
+  the contribution: gaps someone else named, closed in one auditable way on a public chain.
+
+Both papers share the same two authors, so they are not independent confirmations of each
+other. The comparison table for adjacent products (AlphaGrid, ScriptSamurai, ERC-8004,
+OutLayer, TruCore ATF) is [SPEC.md section 13](SPEC.md).
 
 ## Pre-existing code
 
