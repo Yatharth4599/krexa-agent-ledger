@@ -32,7 +32,7 @@ This section is updated at every milestone and states only what actually runs.
 | M4 | Replay harness, attack injector, `debate` and `hier` desks, pilot run | **done**: 18 attack cases across 6 templates, 5 desks, pilot run in [experiments/ebi/FINDINGS.md](experiments/ebi/FINDINGS.md), budget in [BUDGET.md](experiments/ebi/BUDGET.md) awaiting approval |
 | M5 | Full runs and scorecard metrics | **scorecard and `pnpm ebi:report` done** (82 tests, [docs/RESULTS.md](docs/RESULTS.md) regenerates byte-identically); the paid LLM runs are approved and blocked on an archive window and an API key, see [BUDGET.md](experiments/ebi/BUDGET.md) |
 | M6 | Web leaderboard, explorer, attack replay, MCP server | **done**: `pnpm web` explorer recomputes hashes in-browser against the live testnet chain; `pnpm mcp` serves the ledger read-only over stdio, 20 tests through a real MCP client |
-| M7 | Prompt-injection attack demo, skill file, threat model, allocator CSV | not started |
+| M7 | Prompt-injection attack demo, skill file, threat model, allocator CSV | **done**: `pnpm attack-demo` (12 attempts, all blocked, log in [docs/attack-demo.log](docs/attack-demo.log)), [SKILL.md](skill/SKILL.md), [llms.txt](llms.txt), [THREAT_MODEL.md](docs/THREAT_MODEL.md), [FAILURE_CASES.md](docs/FAILURE_CASES.md), `pnpm allocator-csv` |
 | M8 | README for judges, clean-container reproducibility | not started |
 
 Nothing below is filled in until the code that produces it runs. The contract is unaudited and
@@ -45,7 +45,7 @@ These three work now, with no keys and no manual steps:
 ```bash
 git clone https://github.com/Yatharth4599/krexa-agent-ledger && cd krexa-agent-ledger
 ./scripts/setup.sh      # checks toolchain, pnpm install, builds the contract, fetches a sandbox node
-pnpm test               # 67 Rust unit + 15 near-workspaces sandbox + 266 TypeScript tests
+pnpm test               # 67 Rust unit + 15 near-workspaces sandbox + 303 TypeScript tests
 pnpm demo               # local sandbox end to end: policy, evidence gate, fabricated indicator panel caught, kill switch, chain verify
 ```
 

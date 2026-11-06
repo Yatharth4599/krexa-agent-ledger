@@ -163,6 +163,10 @@ importers:
         version: 2.1.9(@types/node@22.20.5)
 
   packages/scorecard:
+    dependencies:
+      '@krexa-ual/sdk':
+        specifier: workspace:*
+        version: link:../sdk
     devDependencies:
       '@types/node':
         specifier: ^22

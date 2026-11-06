@@ -1,0 +1,30 @@
+field,value,reference_threshold,met
+desk_id,ebi,,
+mode,paper,,
+contract_id,ual.krexa-ual.testnet,,
+days_with_a_mark,1,,
+cumulative_return,0.000000,,
+annualized_return,,>= 15%,not assessable
+max_drawdown,0.000000,<= 10%,not assessable
+return_to_drawdown,,>= 1.5x,not assessable
+intents,2,,
+breaches_blocked,2,,
+breach_rate,1.000000,,
+skill_verdict,CANT_TELL_YET,,
+days_needed_for_significance,not reachable at the current rate,,
+receipts,9,,
+data_snapshot_sha256,16834817eb9ffe5cad24cc66fcec29d3a52533646cba78b4d57b054d7d2c869a,,
+generated_at,2026-11-06T19:36:00.447Z,,
+attested_evidence,false,,
+audited,false,,
+
+# Notes, which are part of the data and not decoration
+# The reference thresholds above are a public allocator bar cited in SPEC.md 11. They are reference values.
+# Nothing in this file claims that this desk or Krexa meets that bar. With fewer than 30 days of marks the
+# met column reads 'not assessable' and the annualised and return-to-drawdown fields are left blank, because
+# computing them from days rather than months would look like a result and would not be one.
+# Paper equity is operator-reported. It is not proof of anything except the operator's commitment over time.
+# A day with no equity mark is a gap, not a zero return, and is absent from the daily file.
+# Evidence in this build is unattested. Every receipt carries attested: false.
+# This contract is unaudited and runs on testnet only.
+# Records of what agents did. Not investment advice.

@@ -12,7 +12,8 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "report": "tsx src/cli.ts"
+    "report": "tsx src/cli.ts",
+    "allocator-csv": "tsx src/csv-cli.ts"
   },
   "dependencies": {
     "@krexa-ual/sdk": "workspace:*",
