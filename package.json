@@ -15,7 +15,7 @@
     "test:sandbox": "pnpm run build:contract && cargo test -p integration",
     "demo": "bash scripts/demo.sh",
     "web": "echo \"not built yet (M6)\" && exit 1",
-    "ebi:report": "echo \"not built yet (M5)\" && exit 1",
+    "ebi:report": "pnpm -F @krexa-ual/experiments-ebi report",
     "lint": "cargo clippy --workspace --all-targets -- -D warnings",
     "fmt": "cargo fmt --all",
     "secrets": "gitleaks detect --no-banner --redact",

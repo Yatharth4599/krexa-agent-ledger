@@ -21,3 +21,21 @@ export {
   type SummaryStats,
   type TTest,
 } from "./stats.js";
+
+export {
+  asrByCase,
+  asrByDesk,
+  asrByPriorAction,
+  buildReport,
+  cleanBlockRates,
+  compareAsr,
+  isAttackSuccess,
+  pairedOpeningDifference,
+  type AsrByPrior,
+  type AsrCell,
+  type AsrComparison,
+  type BlockRates,
+  type DecisionRow,
+  type EbiReport,
+  type PairedDifference,
+} from "./ebi.js";

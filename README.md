@@ -30,7 +30,7 @@ This section is updated at every milestone and states only what actually runs.
 | M2 | Sandbox integration tests, SDK, evidence fetcher, testnet deploy, data archive, `pnpm demo` | **done**: 15 sandbox tests, SDK, testnet contract live, signed fetcher, archive recording on a 15 minute grid, `pnpm demo` green |
 | M3 | Deterministic verifier, agent runtime, desks `plain` and `ebi` | **done**: verifier (43 tests), runtime (51 tests), `plain`/`ebi`/`bh` desks run over archived data on sandbox, `pnpm ual replay` verifies every commitment |
 | M4 | Replay harness, attack injector, `debate` and `hier` desks, pilot run | **done**: 18 attack cases across 6 templates, 5 desks, pilot run in [experiments/ebi/FINDINGS.md](experiments/ebi/FINDINGS.md), budget in [BUDGET.md](experiments/ebi/BUDGET.md) awaiting approval |
-| M5 | Full runs and scorecard metrics | not started |
+| M5 | Full runs and scorecard metrics | **scorecard and `pnpm ebi:report` done** (82 tests, [docs/RESULTS.md](docs/RESULTS.md) regenerates byte-identically); the paid LLM runs are approved and blocked on an archive window and an API key, see [BUDGET.md](experiments/ebi/BUDGET.md) |
 | M6 | Web leaderboard, explorer, attack replay, MCP server | not started |
 | M7 | Prompt-injection attack demo, skill file, threat model, allocator CSV | not started |
 | M8 | README for judges, clean-container reproducibility | not started |
@@ -45,7 +45,7 @@ These three work now, with no keys and no manual steps:
 ```bash
 git clone https://github.com/Yatharth4599/krexa-agent-ledger && cd krexa-agent-ledger
 ./scripts/setup.sh      # checks toolchain, pnpm install, builds the contract, fetches a sandbox node
-pnpm test               # 67 Rust unit + 15 near-workspaces sandbox + 246 TypeScript tests
+pnpm test               # 67 Rust unit + 15 near-workspaces sandbox + 266 TypeScript tests
 pnpm demo               # local sandbox end to end: policy, evidence gate, fabricated indicator panel caught, kill switch, chain verify
 ```
 
@@ -61,7 +61,7 @@ git clone https://github.com/Yatharth4599/krexa-agent-ledger && cd krexa-agent-l
 ./scripts/setup.sh      # checks toolchain, pnpm install, builds the contract
 pnpm test               # Rust unit + near-workspaces sandbox + TS tests
 pnpm demo               # local sandbox: policy, evidence gate, attack blocked, withdraw fails, kill switch, chain verify, CSV
-pnpm ebi:report         # recomputes docs/RESULTS.md from recorded receipts
+pnpm ebi:report         # regenerates docs/RESULTS.md from recorded receipts
 pnpm web                # http://localhost:3000
 ```
 

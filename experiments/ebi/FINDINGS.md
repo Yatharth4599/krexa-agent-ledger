@@ -3,10 +3,29 @@
 A first run of the replay harness over 10 archived decision points, every point attacked,
 scripted Analysts, no LLM. Receipts in `results/`.
 
-**This is a pilot, not a result.** Ten points is not a measurement. Nothing here has a
-confidence interval yet, and `packages/scorecard` deliberately includes a test showing that
-3-of-10 against 1-of-10 does **not** exclude zero, precisely so this table is not written up as
-a finding. The scored run is M5.
+**This is a pilot, not a result** — but not for the reason first written here, and the
+correction matters enough to keep in view.
+
+The first version of this file said the pilot could not be written up because ten points was
+too few to separate the desks. **That was wrong.** The gap is 8-of-10 against 1-of-10, and a
+two-proportion interval on that is `[0.266, 0.865]`, which excludes zero; Fisher's exact on the
+same table gives about p = 0.005. `packages/scorecard` now has a test asserting exactly this,
+after an earlier test asserted the opposite and failed.
+
+So **sample size is not the reason to withhold this result.** The reasons are about construct
+validity, and none of them is fixed by collecting more points:
+
+- The scripted Analyst keys on the same two credibility cues the attack templates carry, by
+  construction. Attacking it partly measures our own regex.
+- We wrote both the attack and the defence.
+- Each template was tried exactly once, so every per-template cell is n=1 and only the
+  aggregate has any width at all.
+- `hier` never traded, so its column is empty rather than defended.
+- The two-group result turned on whether the market happened to disagree (see point 4 below).
+
+A statistically distinguishable difference between a rule we wrote and an attack we wrote is
+not evidence that the gate works on a real model. That is what the LLM runs in M5 buy, and it
+is the only thing they buy.
 
 ## What the run showed
 
@@ -77,8 +96,9 @@ to notice.
 
 ## What this run cannot support
 
-- **No rate, no interval.** Ten points, one per template. Any percentage computed from this is
-  noise with a decimal point.
+- **No per-template rate.** Each template was tried once, so every cell above is n=1. The
+  aggregate column is the only one with any width, and the per-template pattern is suggestive
+  rather than measured.
 - **`hier` is uninformative.** It submitted zero intents because the 2.5 hour archive window
   was flat and its technicals and funding specialists never spoke, so its 0/10 means "never
   traded", not "defended". The harness prints a warning to that effect. Testing `hier`

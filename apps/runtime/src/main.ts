@@ -146,6 +146,7 @@ async function sim(): Promise<void> {
     outDir: RESULTS,
     limit,
     attackRate,
+    withDebate: process.argv.includes("--with-debate"),
   });
   printTable(result);
 }

@@ -98,6 +98,9 @@ importers:
 
   experiments/ebi:
     dependencies:
+      '@krexa-ual/scorecard':
+        specifier: workspace:*
+        version: link:../../packages/scorecard
       '@krexa-ual/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk

@@ -66,8 +66,25 @@ import {
   type AttackCase,
 } from "@krexa-ual/experiments-ebi";
 
-export const DESKS = ["plain", "debate", "hier", "ebi", "bh"] as const;
-export type DeskId = (typeof DESKS)[number];
+/**
+ * Desks in the default run.
+ *
+ * `debate` is built, tested and no longer run. YK dropped it on 7 Nov as a cut-line change
+ * from SPEC.md 18, which had it the other way round. The reasoning:
+ *
+ * - arXiv 2610.26438 finding (v) reports "peer debate fails, and only hierarchical
+ *   aggregation reduces ASR", so `debate`'s failure is already published and `hier` is the
+ *   one defence the gate actually has to beat.
+ * - The pilot confirmed it directly: `debate` scored 8/10 against `plain`'s 8/10, template
+ *   for template. Paying for LLM calls to reproduce that again buys nothing.
+ * - It was also the most expensive desk to run, at 3.3 Analyst calls per decision point.
+ *
+ * The code stays in `aggregation.ts` with its tests, and the pilot number stays in
+ * FINDINGS.md, so dropping it loses no evidence. Add it back with `--with-debate`.
+ */
+export const DEFAULT_DESKS = ["plain", "hier", "ebi", "bh"] as const;
+export const ALL_DESKS = ["plain", "debate", "hier", "ebi", "bh"] as const;
+export type DeskId = (typeof ALL_DESKS)[number];
 
 const ASSET = "BTC";
 const START_EQUITY = "10000000000";
@@ -87,6 +104,8 @@ export interface SimOptions {
   limit?: number;
   /** Share of decision points that get an attack. */
   attackRate?: number;
+  /** Include the dropped `debate` desk. Off by default: see DEFAULT_DESKS. */
+  withDebate?: boolean;
   log?: (line: string) => void;
 }
 
@@ -190,6 +209,7 @@ export async function runSim(opts: SimOptions): Promise<SimResult> {
   const log = opts.log ?? ((l: string) => console.log(l));
   const attackRate = opts.attackRate ?? 0.25;
   const cases = attackCases();
+  const desks: readonly DeskId[] = opts.withDebate ? ALL_DESKS : DEFAULT_DESKS;
 
   const allPoints = decisionPoints(opts.archiveDir);
   const points = opts.limit ? allPoints.slice(-opts.limit) : allPoints;
@@ -208,7 +228,8 @@ export async function runSim(opts: SimOptions): Promise<SimResult> {
 
   log(`run ${runId}`);
   log(`${points.length} decision points, ${points[0]!.iso} to ${points[points.length - 1]!.iso}`);
-  log(`desks ${DESKS.join(", ")}`);
+  log(`desks ${desks.join(", ")}`);
+  if (!opts.withDebate) log("debate dropped by cut-line; code and pilot result retained");
   log(`verifierCodeHash ${verifierCodeHash}`);
   log(`${cases.length} attack cases, injected every ${Math.max(1, Math.round(1 / attackRate))} points`);
   log(`evidence maxAgeSec ${SIM_MAX_AGE_SEC} (replay window, not a live desk's 900)`);
@@ -218,6 +239,7 @@ export async function runSim(opts: SimOptions): Promise<SimResult> {
   try {
     return await execute({
       worker,
+      desks,
       points,
       cases,
       verifierCodeHash,
@@ -233,6 +255,7 @@ export async function runSim(opts: SimOptions): Promise<SimResult> {
 
 interface ExecuteArgs {
   worker: Worker;
+  desks: readonly DeskId[];
   points: DecisionPoint[];
   cases: AttackCase[];
   verifierCodeHash: string;
@@ -243,7 +266,7 @@ interface ExecuteArgs {
 }
 
 async function execute(args: ExecuteArgs): Promise<SimResult> {
-  const { worker, points, cases, verifierCodeHash, runId, outDir, attackRate, log } = args;
+  const { worker, desks, points, cases, verifierCodeHash, runId, outDir, attackRate, log } = args;
   const root = worker.rootAccount;
 
   const contract = await root.createSubAccount("ual", { initialBalance: "150 N" });
@@ -261,7 +284,7 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
 
   const traders: Record<string, NearAccount> = {};
   const clients: Record<string, UalClient> = {};
-  for (const deskId of DESKS) {
+  for (const deskId of desks) {
     await ownerClient.createDesk(deskId);
     await ownerClient.commitPolicy(policyFor(deskId, verifierCodeHash));
     const trader = await owner.createSubAccount(`trader-${deskId}`, { initialBalance: "40 N" });
@@ -274,10 +297,10 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
     traders[deskId] = trader;
     clients[deskId] = new UalClient(new WorkspacesCaller(trader, contract), contract.accountId);
   }
-  for (const deskId of DESKS) await clients[deskId]!.recordMark(deskId, START_EQUITY);
+  for (const deskId of desks) await clients[deskId]!.recordMark(deskId, START_EQUITY);
 
   const results: Record<string, DeskResult> = {};
-  for (const deskId of DESKS) {
+  for (const deskId of desks) {
     results[deskId] = {
       deskId,
       intents: 0,
@@ -294,7 +317,7 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
     };
   }
   const caseStats: Record<string, Record<string, CaseOutcome>> = {};
-  for (const deskId of DESKS) {
+  for (const deskId of desks) {
     caseStats[deskId] = {};
     for (const c of cases) {
       caseStats[deskId]![c.caseId] = {
@@ -308,7 +331,7 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
 
   const allArtifacts: Record<string, string> = {};
   const allRecords: Record<string, string> = {};
-  const holdHashes: Record<string, string[]> = Object.fromEntries(DESKS.map((d) => [d, []]));
+  const holdHashes: Record<string, string[]> = Object.fromEntries(desks.map((d) => [d, []]));
   const bhOpened = { value: false };
   let attackedPoints = 0;
   const decisionLog: Record<string, unknown>[] = [];
@@ -381,7 +404,7 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
       }
     }
 
-    for (const deskId of DESKS) {
+    for (const deskId of desks) {
       const client = clients[deskId]!;
 
       // ---- flatten, so every point is an independent opportunity to open ----
@@ -589,7 +612,7 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
   } catch (e) {
     log(`  note: could not fast forward the sandbox (${String(e).slice(0, 80)})`);
   }
-  for (const deskId of DESKS) {
+  for (const deskId of desks) {
     const holds = holdHashes[deskId]!;
     try {
       await clients[deskId]!.recordMark(deskId, START_EQUITY, decisionsRoot(holds));
@@ -602,7 +625,7 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
   }
 
   // ---- persist ----
-  for (const deskId of DESKS) {
+  for (const deskId of desks) {
     const { receipts, chain } = await clients[deskId]!.getRecord(deskId);
     results[deskId]!.chainValid = chain.valid;
     results[deskId]!.cases = cases.map((c) => caseStats[deskId]![c.caseId]!);
@@ -631,7 +654,7 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
         points: points.length,
         attackedPoints,
         attackRate,
-        desks: DESKS,
+        desks,
         caseIds: cases.map((c) => c.caseId),
         asset: ASSET,
         startEquityUsd: START_EQUITY,
@@ -656,7 +679,7 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
     points: points.length,
     attackedPoints,
     verifierCodeHash,
-    desks: DESKS.map((d) => results[d]!),
+    desks: desks.map((d) => results[d]!),
     outDir,
     caseIds: cases.map((c) => c.caseId),
   };

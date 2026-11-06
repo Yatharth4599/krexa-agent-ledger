@@ -1,8 +1,35 @@
 # LLM budget for the full runs
 
-SPEC.md 2A.4 and the M4 acceptance both require this estimate before the M5 runs start, and
-require YK to approve it. **Nothing in this file has been spent. No LLM call has been made
-anywhere in this repo to date.**
+## Approved
+
+YK approved on 7 Nov 2026:
+
+- **Cap: $60.**
+- **670 real decision points**, not reused points.
+- **`debate` dropped, `hier` kept** (cut-line change from SPEC.md 18; the reasoning is in
+  docs/PRIOR_WORK.md and the pilot confirmed `debate` merely tracks `plain`).
+
+Dropping `debate` removes 3.3 of the 8.8 Analyst calls per decision point, which is where most
+of the cost was. **Nothing has been spent yet.** No LLM call has been made anywhere in this repo
+to date, and two things still block the run: see "What is still blocking" at the end.
+
+### Revised cost with `debate` dropped
+
+LLM desks are now `plain` (1.1 calls per point), `ebi` (1.1) and `hier` (3.3, since it runs
+three specialists): **5.5 Analyst calls per decision point**, down from 8.8.
+
+| points | cheap tier | mid tier | frontier tier |
+|---|---|---|---|
+| 480, 1 model | $0.55 | $3.17 | $12.67 |
+| 480, 2 models | $1.11 | **$6.34** | $25.34 |
+| 670, 1 model | $0.77 | $4.42 | $17.69 |
+| 670, 2 models | $1.55 | **$8.84** | $35.38 |
+
+So the approved $60 covers the target run roughly seven times over at the mid tier, or twice
+at frontier rates. The headroom is now large enough that the run can be done more than once,
+which matters for the schedule problem below.
+
+The estimate below is kept as written, so the arithmetic that produced it can be checked.
 
 Everything measured so far ran with scripted Analysts, which cost nothing, so the numbers below
 are an estimate built from measured token counts rather than from a guess about prompt sizes.
@@ -108,13 +135,50 @@ results are reported as partial, with the decision count reached, as SPEC.md M5 
    external validity for the *attack* result, which is measured per decision and does not need
    a long return series.
 
-## What I need from YK
+## What is still blocking, after the approval
 
-- [ ] Approve a cap (recommended: **$60**), or set a different one.
-- [ ] Decide the point count: about 670 real points per model, or reuse with a stated caveat.
-- [ ] Confirm the models. SPEC.md 7 prefers NEAR AI Cloud so `aiSigHash` can be real; note that
-      this build does not verify those signatures, so `aiSig.verified` stays false either way.
-- [ ] Provide `NEARAI_API_KEY` in `.env` if NEAR AI Cloud is the choice.
+### 1. The archive does not hold 670 points yet, and the date it will is the freeze date
 
-Until all four are settled, the runner stays unbuilt and `pnpm runtime:sim` keeps using
-scripted Analysts, which cost nothing and are what a judge runs.
+Measured on 7 Nov 2026: **10 decision points exist.** Recording began 6 Nov at 15:45 UTC on a
+15 minute grid, so 670 points arrives on **13 Nov at about 15:45 UTC**, which is SPEC.md 18's
+freeze day. The paid run, the scoring, `docs/RESULTS.md` and the README would all have to
+happen after that, on the day reserved for bug fixes only, with submission the next day.
+
+That is too tight to be the plan. Because the revised cost is under $10 per full run, the
+budget now allows the obvious fix:
+
+**Recommended: run twice.**
+
+- **Run A, 11 Nov**, on whatever has accumulated (about 480 points). Roughly $6 at the mid
+  tier. This produces a complete `docs/RESULTS.md`, proves the whole pipeline end to end, and
+  means a shippable result exists two days before freeze.
+- **Run B, 13 Nov**, on the full archive (about 670 points), only if Run A was clean. Roughly
+  $9. Replaces Run A's numbers if it completes; if anything goes wrong, Run A still ships.
+
+Total about $15 against the $60 cap. The alternative, a single run on 13 Nov, spends the same
+money with no fallback on the day everything else is also due.
+
+Either way the actual point count is printed in the results and in the README. No run is
+reported as "about 2,000 decisions" when it was 480.
+
+### 2. No model and no key
+
+Still outstanding, and the run cannot start without them:
+
+- [ ] **Confirm the models.** SPEC.md 7 prefers NEAR AI Cloud so `aiSigHash` can be real. Worth
+      knowing: this build does not verify those signatures, so `aiSig.verified` stays `false`
+      either way and the model id remains self-reported. Two models from the same provider is
+      enough for SPEC.md 2A.4; two providers would be better evidence and costs the same.
+- [ ] **Provide `NEARAI_API_KEY`** in `.env` (gitignored), or a key for whichever provider.
+
+## Meanwhile
+
+`apps/runtime` has a provider-shaped Analyst interface and a budget-capped runner, both tested
+against a mock provider so they work without a key. `pnpm runtime:sim` keeps using the scripted
+Analysts, which cost nothing, need no key, and are what a judge runs. The scorecard and
+`docs/RESULTS.md` generator run on the pilot receipts today, so when the key arrives the only
+new thing is the model calls.
+
+The runner reads `LLM_DAILY_BUDGET_USD` from `.env`, refuses to start without it, counts tokens
+as it goes, and **stops** at the cap rather than overshooting. A run that stops early is
+reported as partial with the decision count reached, as SPEC.md M5 requires.
