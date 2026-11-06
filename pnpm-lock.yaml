@@ -65,6 +65,34 @@ importers:
         specifier: ^5
         version: 5.9.3
 
+  apps/runtime:
+    dependencies:
+      '@krexa-ual/archive':
+        specifier: workspace:*
+        version: link:../archive
+      '@krexa-ual/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+      '@krexa-ual/verifier':
+        specifier: workspace:*
+        version: link:../../packages/verifier
+    devDependencies:
+      '@types/node':
+        specifier: ^22
+        version: 22.20.5
+      near-workspaces:
+        specifier: ^4
+        version: 4.0.0
+      tsx:
+        specifier: ^4
+        version: 4.23.15
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.20.5)
+
   packages/sdk:
     devDependencies:
       '@types/node':

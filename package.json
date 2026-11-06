@@ -28,6 +28,8 @@
     "fetcher:keygen": "pnpm -F @krexa-ual/fetcher keygen",
     "fetcher:once": "pnpm -F @krexa-ual/fetcher once",
     "fetcher:from-archive": "pnpm -F @krexa-ual/fetcher from-archive",
-    "verifier:codehash": "pnpm -F @krexa-ual/verifier codehash"
+    "verifier:codehash": "pnpm -F @krexa-ual/verifier codehash",
+    "runtime:sim": "pnpm run build:contract && bash scripts/with-sandbox.sh pnpm -F @krexa-ual/runtime sim",
+    "ual": "pnpm -F @krexa-ual/runtime exec tsx src/main.ts"
   }
 }

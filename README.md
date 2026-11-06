@@ -28,7 +28,7 @@ This section is updated at every milestone and states only what actually runs.
 |---|---|---|
 | M1 | Canonical JSON and hash test vectors, contract core, policy commit, evidence gate, hash chain, kill switch | **done**: 67 Rust tests, 57 TypeScript tests, wasm builds |
 | M2 | Sandbox integration tests, SDK, evidence fetcher, testnet deploy, data archive, `pnpm demo` | **done**: 15 sandbox tests, SDK, testnet contract live, signed fetcher, archive recording on a 15 minute grid, `pnpm demo` green |
-| M3 | Deterministic verifier, agent runtime, desks `plain` and `ebi` | **verifier done** (43 tests, indicator recompute catches a fabricated RSI and momentum); agent runtime next |
+| M3 | Deterministic verifier, agent runtime, desks `plain` and `ebi` | **done**: verifier (43 tests), runtime (51 tests), `plain`/`ebi`/`bh` desks run over archived data on sandbox, `pnpm ual replay` verifies every commitment |
 | M4 | Replay harness, attack injector, `debate` and `hier` desks, pilot run | not started |
 | M5 | Full runs and scorecard metrics | not started |
 | M6 | Web leaderboard, explorer, attack replay, MCP server | not started |
@@ -124,6 +124,28 @@ not argued away.
 Price claims are different and genuinely checked, which is why the fabricated indicator panel
 is defeated rather than diluted: `pnpm demo` shows a claimed RSI of 25.00 dropped against a
 recomputed 100.00 over a cited 15 point series.
+
+## Running the desks over archived data
+
+```bash
+pnpm runtime:sim                      # all three desks over every archived decision point
+pnpm runtime:sim --attack-rate 0.25   # inject a labelled synthetic fake every 4th point
+pnpm ual replay ebi 6                 # recompute every hash behind one decision
+```
+
+`plain`, `ebi` and `bh` see the **identical** decision points, built only from snapshots dated
+at or before each point (a look-ahead assertion enforces this, per arXiv 2601.13770). They
+differ in exactly one way each, which is what makes the comparison mean anything: `plain` is
+the same Analyst with no gate, `bh` reads no evidence at all.
+
+HOLD decisions are committed too, in the next MARK receipt's `decisionsRoot`, so an agent
+cannot later claim whichever hold flattered it.
+
+`pnpm ual replay` recomputes the prompt, snapshot, tool-call and raw-output hashes, checks the
+`decisionHash` against the on-chain receipt, and reruns the consistency check. It prints what
+it verified and then says plainly what it did not: replay proves the agent committed to this
+reasoning before the outcome existed. It does not prove the reasoning was correct, and it is
+not zkML.
 
 ## Results
 

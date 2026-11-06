@@ -1,0 +1,25 @@
+{
+  "name": "@krexa-ual/runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Data/Analyst/Trader/Monitor roles and the plain, ebi and buy-and-hold desks",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "sim": "tsx src/main.ts sim"
+  },
+  "dependencies": {
+    "@krexa-ual/sdk": "workspace:*",
+    "@krexa-ual/verifier": "workspace:*",
+    "@krexa-ual/archive": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "near-workspaces": "^4",
+    "tsx": "^4",
+    "typescript": "^5",
+    "vitest": "^2"
+  }
+}
