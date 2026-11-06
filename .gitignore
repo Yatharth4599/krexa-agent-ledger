@@ -35,3 +35,4 @@ contracts/target/
 data/archive/recorder.pid
 data/archive/recorder.log
 experiments/ebi/scheduled-*.log
+experiments/ebi/launchd-*.log

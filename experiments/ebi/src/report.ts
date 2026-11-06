@@ -252,11 +252,38 @@ export function renderResults(
   // ---- cost side ----
   L.push("## The cost of the defence on clean runs");
   L.push("");
+  const anyCleanIntents = report.blockRates.some((b) => b.cleanIntents > 0);
   if (report.cleanDecisions === 0) {
     L.push(
       "**Not measurable from this run.** Every decision point was attacked, so there are no " +
         "clean-run intents to compute a block rate from. The clean-run cost is on SPEC.md 18's " +
         "never-cut list and needs a run with a realistic attack rate over a longer archive.",
+    );
+  } else if (!anyCleanIntents) {
+    // An empty table here would look like a rendering bug. It is not: the desks genuinely
+    // declined to trade on every clean point, which is a fact about the window rather than
+    // about the gate.
+    L.push(
+      `**Not measurable from this run, for a different reason.** There were ` +
+        `${report.cleanDecisions} clean decisions, and every one of them was a HOLD. No desk ` +
+        "submitted a single clean-run intent, so there is nothing for the gate to have blocked " +
+        "and the block rate is undefined rather than zero.",
+    );
+    L.push("");
+    L.push(
+      "Why: the scripted Analyst's only clean-run signal is 24 hour price momentum crossing a " +
+        "threshold, and 24 hour momentum barely moves across a window this short, so it is " +
+        "close to constant within the run. With no news source enabled either, a clean point " +
+        "carries nothing that would make the Analyst act. The clean-run cost therefore needs a " +
+        "window long enough for momentum to actually vary, which the growing archive will " +
+        "provide, or a news feed, which is held up on terms (see data/archive/SOURCES.md).",
+    );
+    L.push("");
+    L.push(
+      "This matters more than it looks. The clean-run cost is the half of the research question " +
+        "that could make the whole answer negative: a gate that blocks fakes and also blocks " +
+        "every profitable early signal is not worth deploying. Reporting an attack result " +
+        "without it would be reporting only the flattering half.",
     );
   } else {
     L.push(

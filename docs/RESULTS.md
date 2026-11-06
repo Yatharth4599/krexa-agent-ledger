@@ -71,10 +71,11 @@ arXiv 2610.26438 finding (iii) reports a fake indicator panel at 91% against an 
 
 ## The cost of the defence on clean runs
 
-Block rate is the share of clean-run intents the gate refused. This is the cost side of the research question, and it is only half of it: the **false**-block rate needs to know whether each blocked signal would have been profitable at its stated horizon, which requires a price path long enough to resolve `horizonMin`. Until that exists, the figures below say how much the gate blocked and not how much of that was a mistake.
+**Not measurable from this run, for a different reason.** There were 36 clean decisions, and every one of them was a HOLD. No desk submitted a single clean-run intent, so there is nothing for the gate to have blocked and the block rate is undefined rather than zero.
 
-| desk | blocked | clean intents | block rate (95% CI) | reasons |
-|---|---|---|---|---|
+Why: the scripted Analyst's only clean-run signal is 24 hour price momentum crossing a threshold, and 24 hour momentum barely moves across a window this short, so it is close to constant within the run. With no news source enabled either, a clean point carries nothing that would make the Analyst act. The clean-run cost therefore needs a window long enough for momentum to actually vary, which the growing archive will provide, or a news feed, which is held up on terms (see data/archive/SOURCES.md).
+
+This matters more than it looks. The clean-run cost is the half of the research question that could make the whole answer negative: a gate that blocks fakes and also blocks every profitable early signal is not worth deploying. Reporting an attack result without it would be reporting only the flattering half.
 
 ## Receipts behind these numbers
 
