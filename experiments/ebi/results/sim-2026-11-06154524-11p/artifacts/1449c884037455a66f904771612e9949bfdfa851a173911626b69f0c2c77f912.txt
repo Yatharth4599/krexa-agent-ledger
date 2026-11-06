@@ -1,0 +1,27 @@
+{
+  "specialists": [
+    {
+      "name": "news",
+      "direction": "HOLD"
+    },
+    {
+      "name": "technicals",
+      "direction": "HOLD"
+    },
+    {
+      "name": "funding",
+      "direction": "HOLD"
+    }
+  ],
+  "speaking": [],
+  "rationale": "no specialist spoke",
+  "direction": "HOLD",
+  "thesis": {
+    "asset": "BTC",
+    "direction": "HOLD",
+    "confidence": 0,
+    "horizonMin": 240,
+    "maxNotionalUsd": "500000000"
+  },
+  "order": null
+}
