@@ -168,6 +168,14 @@ held up on terms, not code.
 
 ## Reproducibility
 
+Verified from a **fresh `git clone`** in a clean environment with no `.env`, no keys and no
+cached sandbox: `setup.sh`, `pnpm test`, `pnpm demo`, `pnpm attack-demo`, `pnpm ebi:report` and
+`pnpm web` all succeed, `docs/RESULTS.md` regenerates **byte-identically** to the development
+checkout, and `pnpm verifier:codehash` matches across checkouts. Docker is not installed here so
+the literal container run was not performed, and
+[docs/REPRODUCIBILITY.md](docs/REPRODUCIBILITY.md) says exactly what that does and does not
+cover, with the command to try it yourself.
+
 Two runs are scheduled for 11 and 13 Nov and fire without anyone at the keyboard, using whatever
 the archive has accumulated: [docs/SCHEDULED_RUNS.md](docs/SCHEDULED_RUNS.md). They work with or
 without an LLM key and label which they used.
