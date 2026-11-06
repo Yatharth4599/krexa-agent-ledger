@@ -1,0 +1,31 @@
+{
+  "note": "SHA-256 of UTF-8 bytes, lowercase hex, 64 chars. SPEC.md 3.1.",
+  "cases": [
+    {
+      "utf8": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "utf8": "krexa-ual/v1",
+      "sha256": "1a26fe08410312cd76cfd5a59a4de90f081adc048fab577c4826a6718d8e5ef4"
+    },
+    {
+      "utf8": "{}",
+      "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+      "utf8": "{\"schema\":\"krexa.ual.policy/1\"}",
+      "sha256": "b475301f67d797e339e93228771652be6cacfdff98e1e1d39bc2c3efe9788c7a"
+    },
+    {
+      "utf8": "The quick brown fox jumps over the lazy dog",
+      "sha256": "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592"
+    }
+  ],
+  "genesis": {
+    "note": "genesis prevHash = sha256(\"krexa-ual/v1:\" + contractId + \":\" + deskId)",
+    "contractId": "ual.testnet",
+    "deskId": "yk-desk",
+    "genesisHash": "c747bedaf404926cb18a93cab2a57fb71141885b8a9e41205fe615103299c17a"
+  }
+}

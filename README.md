@@ -26,7 +26,7 @@ This section is updated at every milestone and states only what actually runs.
 
 | Milestone | What it covers | State |
 |---|---|---|
-| M1 | Canonical JSON and hash test vectors, contract core, policy commit, evidence gate, hash chain, kill switch | in progress |
+| M1 | Canonical JSON and hash test vectors, contract core, policy commit, evidence gate, hash chain, kill switch | **done**: 67 Rust tests, 57 TypeScript tests, wasm builds |
 | M2 | Sandbox integration tests, SDK, evidence fetcher, testnet deploy, data archive, `pnpm demo` | not started |
 | M3 | Deterministic verifier, agent runtime, desks `plain` and `ebi` | not started |
 | M4 | Replay harness, attack injector, `debate` and `hier` desks, pilot run | not started |
@@ -35,11 +35,20 @@ This section is updated at every milestone and states only what actually runs.
 | M7 | Prompt-injection attack demo, skill file, threat model, allocator CSV | not started |
 | M8 | README for judges, clean-container reproducibility | not started |
 
-Nothing in the table below is filled in until the code that produces it runs.
+Nothing below is filled in until the code that produces it runs. The contract is unaudited and
+testnet only.
 
 ## Quick start for AI judges
 
-Not ready yet. It will be these five commands and nothing else, with no keys and no manual steps:
+Partly ready. These two work now, with no keys and no manual steps:
+
+```bash
+git clone https://github.com/Yatharth4599/krexa-agent-ledger && cd krexa-agent-ledger
+./scripts/setup.sh      # checks toolchain, pnpm install, builds the contract
+pnpm test               # 67 Rust unit tests + 57 TypeScript cross-language tests
+```
+
+The full five-command sequence, once M2 to M6 land:
 
 ```bash
 git clone https://github.com/Yatharth4599/krexa-agent-ledger && cd krexa-agent-ledger

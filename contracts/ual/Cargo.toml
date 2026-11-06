@@ -1,0 +1,31 @@
+[package]
+name = "ual"
+description = "Krexa Underwritable Agent Ledger: policy registry, receipt ledger, evidence gate"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = "5.30"
+serde = { version = "1", features = ["derive"] }
+# default features only. `preserve_order` must stay OFF: it swaps the object map for
+# IndexMap, which would make serde_json's own output insertion-ordered. We do not rely
+# on serde_json for canonical form (see canonical.rs) but a stray feature here would
+# still be a trap for anyone who later does.
+serde_json = "1"
+bs58 = { version = "0.5", default-features = false, features = ["alloc"] }
+hex = { version = "0.4", default-features = false, features = ["alloc"] }
+
+[dev-dependencies]
+near-sdk = { version = "5.30", features = ["unit-testing"] }
+# Tests need to *produce* ed25519 signatures. The contract only ever verifies them, via
+# env::ed25519_verify, so this never ships in the wasm.
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
+
+[features]
+default = []

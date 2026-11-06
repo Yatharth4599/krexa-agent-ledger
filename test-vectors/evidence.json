@@ -1,0 +1,37 @@
+{
+  "note": "Evidence item signing vectors. A fetcher signs canonical(item) as UTF-8 bytes with ed25519; the contract verifies with env::ed25519_verify. `stance` is deliberately outside the signed payload: it is the off-chain verifier's call, not the fetcher's. This secret key is a published test fixture and signs nothing but these vectors.",
+  "fetcherSecretKeyHex": "0707070707070707070707070707070707070707070707070707070707070707",
+  "fetcherPublicKey": "ed25519:GmaDrppBC7P5ARKV8g3djiwP89vz1jLK23V2GBjuAEGB",
+  "items": [
+    {
+      "name": "news-newswire-a",
+      "item": {
+        "contentHash": "0101010101010101010101010101010101010101010101010101010101010101",
+        "fetchedAt": "1762423700000000000",
+        "kind": "NEWS",
+        "source": "newswire-a.example",
+        "sourceGroup": "newswire-a",
+        "url": "https://newswire-a.example/a"
+      },
+      "signingString": "{\"contentHash\":\"0101010101010101010101010101010101010101010101010101010101010101\",\"fetchedAt\":\"1762423700000000000\",\"kind\":\"NEWS\",\"source\":\"newswire-a.example\",\"sourceGroup\":\"newswire-a\",\"url\":\"https://newswire-a.example/a\"}",
+      "signingStringSha256": "5b8e9cb8ec1d4acb7fb72c92d97dcfc30291aa6fab342dbdafb6e2e1aca89ccd",
+      "evidenceId": "0101010101010101010101010101010101010101010101010101010101010101",
+      "signature": "4fuUYfm8Y5NDzRrL7my12Pboymx3uYkkWnE3ieCcF2moEyczBFED1v5WK8VNmoNdihMAi1xWYFnpc5xfBT61NvHK"
+    },
+    {
+      "name": "price-hyperliquid",
+      "item": {
+        "contentHash": "0202020202020202020202020202020202020202020202020202020202020202",
+        "fetchedAt": "1762423750000000000",
+        "kind": "PRICE",
+        "source": "hyperliquid",
+        "sourceGroup": "exchange-hl",
+        "url": "https://api.hyperliquid.xyz/info"
+      },
+      "signingString": "{\"contentHash\":\"0202020202020202020202020202020202020202020202020202020202020202\",\"fetchedAt\":\"1762423750000000000\",\"kind\":\"PRICE\",\"source\":\"hyperliquid\",\"sourceGroup\":\"exchange-hl\",\"url\":\"https://api.hyperliquid.xyz/info\"}",
+      "signingStringSha256": "ab7cfa4d151a111d84000f8938e3b11c72550966a1d008630eb4d729b8399cc7",
+      "evidenceId": "0202020202020202020202020202020202020202020202020202020202020202",
+      "signature": "39GPwWy6Yxte9EK2MRWpvF21xL9g1JcwFJGetbt5ZEh9soV4EiSQjaRk6Mwnzx6ndxz9nstKEQ1Z7YpW1aTDPYm9"
+    }
+  ]
+}

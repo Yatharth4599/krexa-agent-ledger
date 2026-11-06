@@ -1,0 +1,57 @@
+{
+  "note": "Policy vectors, SPEC.md 3.2. The valid policy is already in canonical form, which is what commit_policy demands: it re-serializes what it parsed and compares bytes, so policyHash is unambiguous.",
+  "valid": {
+    "policyJson": "{\"allowedAssets\":[\"BTC\",\"ETH\"],\"allowedModes\":[\"live\",\"paper\"],\"allowedVenues\":[\"hyperliquid\",\"paper\"],\"dailyLossLimitUsd\":\"200000000\",\"description\":\"EBI gated desk. Paper only in this build.\",\"deskId\":\"yk-desk\",\"evidence\":{\"groups\":[{\"group\":\"exchange-hl\",\"sources\":[\"hyperliquid\"]},{\"group\":\"newswire-a\",\"sources\":[\"newswire-a.example\"]},{\"group\":\"newswire-b\",\"sources\":[\"newswire-b.example\"]}],\"maxAgeSec\":900,\"required\":true,\"sizeTableBps\":[0,0,5000,10000],\"verifierCodeHash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"killSwitch\":{\"autoOnDailyLoss\":true,\"monitorMayEngage\":true},\"maxOpenPositions\":3,\"maxPositionUsd\":\"1000000000\",\"schema\":\"krexa.ual.policy/1\",\"slippageCapBps\":30}",
+    "policyHash": "54b0933b9a92d097d9f753862e7a7558e7c5af3afdd41de5b5b6a14c3c7f0c13"
+  },
+  "invalid": [
+    {
+      "name": "keys-out-of-byte-order",
+      "policyJson": "{\"allowedAssets\":[\"BTC\",\"ETH\"],\"allowedModes\":[\"live\",\"paper\"],\"allowedVenues\":[\"hyperliquid\",\"paper\"],\"dailyLossLimitUsd\":\"200000000\",\"deskId\":\"yk-desk\",\"description\":\"EBI gated desk. Paper only in this build.\",\"evidence\":{\"groups\":[{\"group\":\"exchange-hl\",\"sources\":[\"hyperliquid\"]},{\"group\":\"newswire-a\",\"sources\":[\"newswire-a.example\"]},{\"group\":\"newswire-b\",\"sources\":[\"newswire-b.example\"]}],\"maxAgeSec\":900,\"required\":true,\"sizeTableBps\":[0,0,5000,10000],\"verifierCodeHash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"killSwitch\":{\"autoOnDailyLoss\":true,\"monitorMayEngage\":true},\"maxOpenPositions\":3,\"maxPositionUsd\":\"1000000000\",\"schema\":\"krexa.ual.policy/1\",\"slippageCapBps\":30}",
+      "error": "E04_POLICY_NOT_CANONICAL",
+      "why": "same policy, two keys swapped: valid JSON, not canonical bytes"
+    },
+    {
+      "name": "unsorted-asset-set",
+      "policyJson": "{\"allowedAssets\":[\"ETH\",\"BTC\"],\"allowedModes\":[\"live\",\"paper\"],\"allowedVenues\":[\"hyperliquid\",\"paper\"],\"dailyLossLimitUsd\":\"200000000\",\"description\":\"EBI gated desk. Paper only in this build.\",\"deskId\":\"yk-desk\",\"evidence\":{\"groups\":[{\"group\":\"exchange-hl\",\"sources\":[\"hyperliquid\"]},{\"group\":\"newswire-a\",\"sources\":[\"newswire-a.example\"]},{\"group\":\"newswire-b\",\"sources\":[\"newswire-b.example\"]}],\"maxAgeSec\":900,\"required\":true,\"sizeTableBps\":[0,0,5000,10000],\"verifierCodeHash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"killSwitch\":{\"autoOnDailyLoss\":true,\"monitorMayEngage\":true},\"maxOpenPositions\":3,\"maxPositionUsd\":\"1000000000\",\"schema\":\"krexa.ual.policy/1\",\"slippageCapBps\":30}",
+      "error": "E05_POLICY_INVALID",
+      "why": "sets must be sorted and deduplicated, SPEC.md 3.1"
+    },
+    {
+      "name": "unknown-top-level-key",
+      "policyJson": "{\"allowedAssets\":[\"BTC\",\"ETH\"],\"allowedModes\":[\"live\",\"paper\"],\"allowedVenues\":[\"hyperliquid\",\"paper\"],\"dailyLossLimitUsd\":\"200000000\",\"description\":\"EBI gated desk. Paper only in this build.\",\"deskId\":\"yk-desk\",\"extra\":1,\"evidence\":{\"groups\":[{\"group\":\"exchange-hl\",\"sources\":[\"hyperliquid\"]},{\"group\":\"newswire-a\",\"sources\":[\"newswire-a.example\"]},{\"group\":\"newswire-b\",\"sources\":[\"newswire-b.example\"]}],\"maxAgeSec\":900,\"required\":true,\"sizeTableBps\":[0,0,5000,10000],\"verifierCodeHash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"killSwitch\":{\"autoOnDailyLoss\":true,\"monitorMayEngage\":true},\"maxOpenPositions\":3,\"maxPositionUsd\":\"1000000000\",\"schema\":\"krexa.ual.policy/1\",\"slippageCapBps\":30}",
+      "error": "E05_POLICY_INVALID",
+      "why": "additionalProperties is false"
+    },
+    {
+      "name": "size-table-does-not-start-at-zero",
+      "policyJson": "{\"allowedAssets\":[\"BTC\",\"ETH\"],\"allowedModes\":[\"live\",\"paper\"],\"allowedVenues\":[\"hyperliquid\",\"paper\"],\"dailyLossLimitUsd\":\"200000000\",\"description\":\"EBI gated desk. Paper only in this build.\",\"deskId\":\"yk-desk\",\"evidence\":{\"groups\":[{\"group\":\"exchange-hl\",\"sources\":[\"hyperliquid\"]},{\"group\":\"newswire-a\",\"sources\":[\"newswire-a.example\"]},{\"group\":\"newswire-b\",\"sources\":[\"newswire-b.example\"]}],\"maxAgeSec\":900,\"required\":true,\"sizeTableBps\":[1,0,5000,10000],\"verifierCodeHash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"killSwitch\":{\"autoOnDailyLoss\":true,\"monitorMayEngage\":true},\"maxOpenPositions\":3,\"maxPositionUsd\":\"1000000000\",\"schema\":\"krexa.ual.policy/1\",\"slippageCapBps\":30}",
+      "error": "E05_POLICY_INVALID",
+      "why": "k = 0 means nothing agreed, which must size to zero"
+    },
+    {
+      "name": "size-table-decreases",
+      "policyJson": "{\"allowedAssets\":[\"BTC\",\"ETH\"],\"allowedModes\":[\"live\",\"paper\"],\"allowedVenues\":[\"hyperliquid\",\"paper\"],\"dailyLossLimitUsd\":\"200000000\",\"description\":\"EBI gated desk. Paper only in this build.\",\"deskId\":\"yk-desk\",\"evidence\":{\"groups\":[{\"group\":\"exchange-hl\",\"sources\":[\"hyperliquid\"]},{\"group\":\"newswire-a\",\"sources\":[\"newswire-a.example\"]},{\"group\":\"newswire-b\",\"sources\":[\"newswire-b.example\"]}],\"maxAgeSec\":900,\"required\":true,\"sizeTableBps\":[0,0,10000,5000],\"verifierCodeHash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"killSwitch\":{\"autoOnDailyLoss\":true,\"monitorMayEngage\":true},\"maxOpenPositions\":3,\"maxPositionUsd\":\"1000000000\",\"schema\":\"krexa.ual.policy/1\",\"slippageCapBps\":30}",
+      "error": "E05_POLICY_INVALID",
+      "why": "more corroboration must never buy a smaller position"
+    },
+    {
+      "name": "slippage-cap-above-1000-bps",
+      "policyJson": "{\"allowedAssets\":[\"BTC\",\"ETH\"],\"allowedModes\":[\"live\",\"paper\"],\"allowedVenues\":[\"hyperliquid\",\"paper\"],\"dailyLossLimitUsd\":\"200000000\",\"description\":\"EBI gated desk. Paper only in this build.\",\"deskId\":\"yk-desk\",\"evidence\":{\"groups\":[{\"group\":\"exchange-hl\",\"sources\":[\"hyperliquid\"]},{\"group\":\"newswire-a\",\"sources\":[\"newswire-a.example\"]},{\"group\":\"newswire-b\",\"sources\":[\"newswire-b.example\"]}],\"maxAgeSec\":900,\"required\":true,\"sizeTableBps\":[0,0,5000,10000],\"verifierCodeHash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"killSwitch\":{\"autoOnDailyLoss\":true,\"monitorMayEngage\":true},\"maxOpenPositions\":3,\"maxPositionUsd\":\"1000000000\",\"schema\":\"krexa.ual.policy/1\",\"slippageCapBps\":1001}",
+      "error": "E05_POLICY_INVALID",
+      "why": "schema maximum is 1000"
+    },
+    {
+      "name": "money-with-a-leading-zero",
+      "policyJson": "{\"allowedAssets\":[\"BTC\",\"ETH\"],\"allowedModes\":[\"live\",\"paper\"],\"allowedVenues\":[\"hyperliquid\",\"paper\"],\"dailyLossLimitUsd\":\"200000000\",\"description\":\"EBI gated desk. Paper only in this build.\",\"deskId\":\"yk-desk\",\"evidence\":{\"groups\":[{\"group\":\"exchange-hl\",\"sources\":[\"hyperliquid\"]},{\"group\":\"newswire-a\",\"sources\":[\"newswire-a.example\"]},{\"group\":\"newswire-b\",\"sources\":[\"newswire-b.example\"]}],\"maxAgeSec\":900,\"required\":true,\"sizeTableBps\":[0,0,5000,10000],\"verifierCodeHash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"killSwitch\":{\"autoOnDailyLoss\":true,\"monitorMayEngage\":true},\"maxOpenPositions\":3,\"maxPositionUsd\":\"0100000000\",\"schema\":\"krexa.ual.policy/1\",\"slippageCapBps\":30}",
+      "error": "E05_POLICY_INVALID",
+      "why": "one value must have exactly one hashable spelling"
+    },
+    {
+      "name": "source-in-two-groups",
+      "policyJson": "{\"allowedAssets\":[\"BTC\",\"ETH\"],\"allowedModes\":[\"live\",\"paper\"],\"allowedVenues\":[\"hyperliquid\",\"paper\"],\"dailyLossLimitUsd\":\"200000000\",\"description\":\"EBI gated desk. Paper only in this build.\",\"deskId\":\"yk-desk\",\"evidence\":{\"groups\":[{\"group\":\"exchange-hl\",\"sources\":[\"hyperliquid\"]},{\"group\":\"newswire-a\",\"sources\":[\"newswire-a.example\"]},{\"group\":\"newswire-b\",\"sources\":[\"newswire-a.example\"]}],\"maxAgeSec\":900,\"required\":true,\"sizeTableBps\":[0,0,5000,10000],\"verifierCodeHash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"killSwitch\":{\"autoOnDailyLoss\":true,\"monitorMayEngage\":true},\"maxOpenPositions\":3,\"maxPositionUsd\":\"1000000000\",\"schema\":\"krexa.ual.policy/1\",\"slippageCapBps\":30}",
+      "error": "E05_POLICY_INVALID",
+      "why": "independent-group counting would be ambiguous"
+    }
+  ]
+}
