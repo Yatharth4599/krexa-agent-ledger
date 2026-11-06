@@ -14,7 +14,7 @@
     "test:ts": "pnpm -r --if-present test",
     "test:sandbox": "pnpm run build:contract && cargo test -p integration",
     "demo": "bash scripts/demo.sh",
-    "web": "echo \"not built yet (M6)\" && exit 1",
+    "web": "pnpm -F @krexa-ual/web start",
     "ebi:report": "pnpm -F @krexa-ual/experiments-ebi report",
     "lint": "cargo clippy --workspace --all-targets -- -D warnings",
     "fmt": "cargo fmt --all",
@@ -30,6 +30,7 @@
     "fetcher:from-archive": "pnpm -F @krexa-ual/fetcher from-archive",
     "verifier:codehash": "pnpm -F @krexa-ual/verifier codehash",
     "runtime:sim": "pnpm run build:contract && bash scripts/with-sandbox.sh pnpm -F @krexa-ual/runtime sim",
-    "ual": "pnpm -F @krexa-ual/runtime exec tsx src/main.ts"
+    "ual": "pnpm -F @krexa-ual/runtime exec tsx src/main.ts",
+    "testnet:walkthrough": "pnpm -F @krexa-ual/runtime exec tsx ../../scripts/testnet-walkthrough.ts"
   }
 }

@@ -24,6 +24,7 @@ export {
 } from "./canonical.js";
 
 export { base58Decode, base58Encode } from "./base58.js";
+export { bytesToHex, sha256Bytes, utf8Bytes } from "./sha256.js";
 
 export {
   receiptHash,

@@ -31,7 +31,7 @@ This section is updated at every milestone and states only what actually runs.
 | M3 | Deterministic verifier, agent runtime, desks `plain` and `ebi` | **done**: verifier (43 tests), runtime (51 tests), `plain`/`ebi`/`bh` desks run over archived data on sandbox, `pnpm ual replay` verifies every commitment |
 | M4 | Replay harness, attack injector, `debate` and `hier` desks, pilot run | **done**: 18 attack cases across 6 templates, 5 desks, pilot run in [experiments/ebi/FINDINGS.md](experiments/ebi/FINDINGS.md), budget in [BUDGET.md](experiments/ebi/BUDGET.md) awaiting approval |
 | M5 | Full runs and scorecard metrics | **scorecard and `pnpm ebi:report` done** (82 tests, [docs/RESULTS.md](docs/RESULTS.md) regenerates byte-identically); the paid LLM runs are approved and blocked on an archive window and an API key, see [BUDGET.md](experiments/ebi/BUDGET.md) |
-| M6 | Web leaderboard, explorer, attack replay, MCP server | not started |
+| M6 | Web leaderboard, explorer, attack replay, MCP server | **web done**: `pnpm web`, explorer recomputes hashes in-browser against the live testnet chain; MCP server next |
 | M7 | Prompt-injection attack demo, skill file, threat model, allocator CSV | not started |
 | M8 | README for judges, clean-container reproducibility | not started |
 
@@ -52,7 +52,16 @@ pnpm demo               # local sandbox end to end: policy, evidence gate, fabri
 `pnpm demo` exits non-zero if any assertion fails, so it is a test as much as a demonstration.
 
 Deployed testnet contract: [`ual.krexa-ual.testnet`](https://testnet.nearblocks.io/address/ual.krexa-ual.testnet)
-(`code sha256 0f204817adeadae8bbd6fd13a7c6485828bd42e94156a16d99aa53c077461e3c` at first deploy).
+
+The desk `ebi` on that contract holds a real 14 receipt chain written by
+`pnpm testnet:walkthrough`: a single-source fake refused as `R_UNCORROBORATED`, a corroborated
+signal approved at half size, a $250 fill against a $500 request, an oversize open refused as
+`R_MAX_POSITION`, the kill switch refusing an open, and an exit approved while it was engaged.
+Trading calls are signed by `trader-ebi.krexa-ual.testnet`, a separate account.
+
+Verify it without trusting us: `pnpm web`, then Explorer. Every hash is recomputed in your
+browser from the receipt's own contents, and receipt 1 is anchored to
+`sha256("krexa-ual/v1:" + contractId + ":" + deskId)`.
 
 The full five-command sequence, once M3 to M6 land:
 

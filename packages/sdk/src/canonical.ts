@@ -18,7 +18,8 @@
  * Rust and JavaScript agree on the output without any further care.
  */
 
-import { createHash } from "node:crypto";
+import { sha256Hex, utf8Bytes } from "./sha256.js";
+
 
 /** Error codes match SPEC.md 4.4 so a local pre-check reports what the contract would. */
 export type CanonicalErrorCode =
@@ -132,9 +133,16 @@ function writeValue(value: unknown, out: string[]): void {
 }
 
 function compareByteOrder(a: string, b: string): number {
-  const ab = Buffer.from(a, "utf8");
-  const bb = Buffer.from(b, "utf8");
-  return Buffer.compare(ab, bb);
+  // Keys are printable ASCII (enforced by writeString), so UTF-8 bytes are one per character
+  // and a plain code-unit comparison is already byte order. Compared explicitly anyway, so the
+  // guarantee does not rest on that coincidence, and without Buffer so this runs in a browser.
+  const ab = utf8Bytes(a);
+  const bb = utf8Bytes(b);
+  const n = Math.min(ab.length, bb.length);
+  for (let i = 0; i < n; i++) {
+    if (ab[i] !== bb[i]) return ab[i]! - bb[i]!;
+  }
+  return ab.length - bb.length;
 }
 
 function writeNumber(n: number, out: string[]): void {
@@ -287,11 +295,8 @@ export function assertPolicyBytesCanonical(policyJson: string): void {
   }
 }
 
-/** SHA-256 of UTF-8 bytes, lowercase hex, 64 chars. */
-export function sha256Hex(data: string | Uint8Array): string {
-  const buf = typeof data === "string" ? Buffer.from(data, "utf8") : data;
-  return createHash("sha256").update(buf).digest("hex");
-}
+// Re-exported so callers get hashing and canonical form from one module.
+export { sha256Hex };
 
 /** `sha256(canonical(value))`, lowercase hex. */
 export function canonicalHash(value: unknown): string {
