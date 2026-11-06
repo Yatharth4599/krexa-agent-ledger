@@ -197,9 +197,16 @@ describe("building items from content", () => {
       url: "https://newswire-b.example/y",
       fetchedAtNs: "1762423700000000000",
     });
-    // Same content from two sources gives the same evidence id. That is the point: it is how
-    // the verifier can tell "two outlets agree" from "one outlet, cited twice".
+    // Same content from two sources gives the same evidence id.
+    //
+    // Note what this does NOT give you: the id alone cannot tell "two outlets agree" from
+    // "one outlet, cited twice". Only the `source` field on each signed item can, which is
+    // why the verifier keeps a list of items per id rather than one item, and why
+    // `packages/verifier` has a whole block of tests for the same fake planted across
+    // several outlets. Getting this wrong made a 3-group planting look like a single source
+    // and the gate look stronger than it is.
     expect(a.contentHash).toBe(b.contentHash);
+    expect(a.source).not.toBe(b.source);
     expect(a.contentHash).toBe(contentHashOf(content));
   });
 

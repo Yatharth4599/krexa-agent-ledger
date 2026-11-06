@@ -41,16 +41,98 @@ function printTable(result: SimResult): void {
     if (reasons.length === 0) continue;
     console.log(`${d.deskId}: ${reasons.map(([r, n]) => `${r} x${n}`).join(", ")}`);
   }
+
+  // Per template, which is the breakdown that carries the research content. The aggregate is
+  // an average over templates designed to behave differently, so it means little on its own.
+  const anyAttacked = result.desks.some((d) => d.cases.some((c) => c.attacked > 0));
+  if (anyAttacked) {
+    console.log("");
+    console.log("opened in the attacker's direction, by template (successes / attacked)");
+    const header = ["template".padEnd(34), ...result.desks.map((d) => d.deskId.padStart(8))];
+    console.log(header.join(""));
+    for (const caseId of result.caseIds) {
+      const row = [caseId.padEnd(34)];
+      let seen = 0;
+      for (const d of result.desks) {
+        const c = d.cases.find((x) => x.caseId === caseId);
+        seen += c?.attacked ?? 0;
+        row.push(`${c?.succeeded ?? 0}/${c?.attacked ?? 0}`.padStart(8));
+      }
+      if (seen > 0) console.log(row.join(""));
+    }
+
+    // Finding (iii): a fake indicator panel scores 91% against an agent about to hold and 12%
+    // against one about to buy. An aggregate that hides this can be moved sevenfold by timing.
+    console.log("");
+    console.log("by what the desk would have done WITHOUT the attack");
+    for (const d of result.desks) {
+      const byPrior: Record<string, { attacked: number; succeeded: number }> = {};
+      for (const c of d.cases) {
+        for (const [prior, v] of Object.entries(c.byPriorAction)) {
+          byPrior[prior] ??= { attacked: 0, succeeded: 0 };
+          byPrior[prior]!.attacked += v.attacked;
+          byPrior[prior]!.succeeded += v.succeeded;
+        }
+      }
+      const parts = Object.entries(byPrior)
+        .sort()
+        .map(([prior, v]) => `prior=${prior} ${v.succeeded}/${v.attacked}`);
+      if (parts.length > 0) console.log(`${d.deskId.padEnd(8)}${parts.join("  ")}`);
+    }
+  }
+
+  // `bh` reads no evidence at all, so it cannot be attacked in any meaningful sense. If it
+  // happens to open on an attacked point, that is the timing of its single buy coinciding
+  // with an injection, not the attack working. Counting it as a success would overstate the
+  // attack and flatter every gated desk by comparison.
+  const bh = result.desks.find((d) => d.deskId === "bh");
+  if (bh && bh.attackSuccesses > 0) {
+    console.log("");
+    console.log(`NOTE bh shows ${bh.attackSuccesses} "success" but reads no evidence, so it`);
+    console.log("     cannot be attacked. That is its single buy-and-hold open coinciding with");
+    console.log("     an injected point. Treat bh's row as a price baseline, not as an attack");
+    console.log("     surface, and exclude it from any ASR comparison.");
+  }
+
+  // A desk that never opened anything scores zero attack success trivially, and reading that
+  // as a defence is the easiest mistake to make with this table. Say so instead.
+  const silent = result.desks.filter((d) => d.intents === 0);
+  if (silent.length > 0) {
+    console.log("");
+    for (const d of silent) {
+      console.log(
+        `WARNING ${d.deskId} submitted no intents at all, so its 0/${d.attackedPoints} is not`,
+      );
+      console.log(
+        `        evidence of a defence: a desk that never trades cannot be attacked. Check`,
+      );
+      console.log(`        its clean-run behaviour before reading anything into that row.`);
+    }
+  }
+
+  // The confound the first run of this harness actually hit.
+  const capped = result.desks.filter((d) => (d.rejectionReasons.R_MAX_OPEN_POSITIONS ?? 0) > 0);
+  if (capped.length > 0) {
+    console.log("");
+    console.log(
+      `WARNING ${capped.map((d) => d.deskId).join(", ")} hit R_MAX_OPEN_POSITIONS. A saturated`,
+    );
+    console.log("        desk is refused for being full rather than for anything to do with the");
+    console.log("        attack, which makes it look defended. The harness flattens between");
+    console.log("        points to prevent this, so seeing it here means something is wrong.");
+  }
+
   console.log("");
   console.log("k below the supporting-group count means the price tape contradicted the");
   console.log("headline: contradicting groups are subtracted, so a fake that disagrees with");
   console.log("the market is refused twice over. pnpm ual replay <desk> <seq> shows the k");
   console.log("the verifier computed for any single decision.");
   console.log("");
-  console.log("No attack success rate is printed as a headline figure. With this many points");
-  console.log("the counts above are not a measurement, and arXiv 2610.26438 finding (iii)");
-  console.log("shows ASR moves sevenfold with the agent's prior state, so a rate without that");
-  console.log("breakdown would mislead. The scored run with intervals is M5.");
+  console.log("No attack success rate is printed as a headline figure. These are raw counts");
+  console.log("over very few points, not a measurement, and finding (iii) shows ASR moves");
+  console.log("sevenfold with the prior state above. Wilson intervals and the paired tests");
+  console.log("are M5. Every template here was written by us, not taken from the paper:");
+  console.log("see experiments/ebi/templates/SOURCES.md.");
   console.log("");
   console.log(`receipts and artifacts: ${result.outDir}`);
   console.log(`replay one:             pnpm ual replay ebi <seq>`);

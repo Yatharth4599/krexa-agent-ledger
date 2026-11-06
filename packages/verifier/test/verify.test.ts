@@ -620,3 +620,120 @@ describe("verifierCodeHash", () => {
     expect([...behavioural].sort()).toEqual([...HASHED_FILES].sort());
   });
 });
+
+// ---------------------------------------------------------------- H4: multi-group planting
+
+describe("the same fake planted across several groups (SPEC.md 2A.6 H4)", () => {
+  const FAKE = "BREAKING: Reuters reports major asset manager confirms spot BTC allocation";
+
+  /** The identical text, signed as if fetched from several outlets. */
+  function plantedIn(sources: string[]): SignedEvidenceItem[] {
+    return sources.map((source) => sign(FAKE, source, "NEWS"));
+  }
+
+  const policy: VerifierPolicy = {
+    ...POLICY,
+    groups: [
+      { group: "newswire-a", sources: ["newswire-a.example"] },
+      { group: "newswire-b", sources: ["newswire-b.example"] },
+      { group: "newswire-c", sources: ["newswire-c.example"] },
+    ],
+  };
+
+  function signalFor(items: SignedEvidenceItem[]): Signal {
+    // All items share one evidenceId, because an evidenceId is a content hash.
+    const id = items[0]!.item.contentHash;
+    return {
+      asset: "BTC",
+      direction: "LONG",
+      confidence: 6500,
+      horizonMin: 240,
+      citations: [id],
+      declaredStance: { [id]: "SUPPORT" },
+    };
+  }
+
+  it("identical content from several outlets shares one evidenceId", () => {
+    // This is what makes the attack possible, and what made the first implementation of the
+    // verifier drop all but one item: it indexed by evidenceId to a single item.
+    const items = plantedIn(["newswire-a.example", "newswire-b.example", "newswire-c.example"]);
+    const ids = new Set(items.map((i) => i.item.contentHash));
+    expect(ids.size).toBe(1);
+    expect(new Set(items.map((i) => i.item.source)).size).toBe(3);
+  });
+
+  it("one outlet gives k=1 and no size", () => {
+    const items = plantedIn(["newswire-a.example"]);
+    const r = verify({ signal: signalFor(items), items, policy, nowNs: NOW });
+    expect(r.k).toBe(1);
+    expect(r.sizeMultiplierBps).toBe(0);
+  });
+
+  it("planted in two groups, k rises to 2 and the trade is allowed at half size", () => {
+    const items = plantedIn(["newswire-a.example", "newswire-b.example"]);
+    const r = verify({ signal: signalFor(items), items, policy, nowNs: NOW });
+    expect(r.items).toHaveLength(2);
+    expect(r.supportGroups.sort()).toEqual(["newswire-a", "newswire-b"]);
+    expect(r.k).toBe(2);
+    expect(r.sizeMultiplierBps).toBe(5000);
+  });
+
+  it("planted in three groups, the gate allows FULL size on a single fabrication", () => {
+    // H4, demonstrated rather than argued. The defence is only as good as source
+    // independence, and nothing here detects that the three outlets are repeating one claim.
+    const items = plantedIn([
+      "newswire-a.example",
+      "newswire-b.example",
+      "newswire-c.example",
+    ]);
+    const r = verify({ signal: signalFor(items), items, policy, nowNs: NOW });
+    expect(r.k).toBe(3);
+    expect(r.sizeMultiplierBps).toBe(10000);
+  });
+
+  it("says in the explanation that one claim is carried by several sources", () => {
+    // A reader of the attack replay view must be able to see this, not infer it.
+    const items = plantedIn(["newswire-a.example", "newswire-b.example", "newswire-c.example"]);
+    const r = verify({ signal: signalFor(items), items, policy, nowNs: NOW });
+    expect(r.explanation.join("\n")).toMatch(/carried by 3 sources/);
+    expect(r.explanation.join("\n")).toMatch(/identical content/);
+  });
+
+  it("every planted copy reaches the bundle, so the contract can recount the groups", () => {
+    const items = plantedIn(["newswire-a.example", "newswire-b.example"]);
+    const r = verify({ signal: signalFor(items), items, policy, nowNs: NOW });
+    expect(r.bundle?.items).toHaveLength(2);
+    expect(new Set(r.bundle!.items.map((i) => i.item.source)).size).toBe(2);
+  });
+
+  it("citing the same content twice is still one source, not two", () => {
+    // Otherwise an Analyst could manufacture corroboration by repeating a citation.
+    const items = plantedIn(["newswire-a.example"]);
+    const id = items[0]!.item.contentHash;
+    const r = verify({
+      signal: { ...signalFor(items), citations: [id, id, id] },
+      items,
+      policy,
+      nowNs: NOW,
+    });
+    expect(r.items).toHaveLength(1);
+    expect(r.k).toBe(1);
+  });
+
+  it("a planted copy from an undeclared outlet buys nothing", () => {
+    // The attacker has to reach a source the policy actually declared, which is the one
+    // barrier left: the owner's group list is the attack surface.
+    const items = plantedIn(["newswire-a.example", "attacker-blog.example"]);
+    const r = verify({ signal: signalFor(items), items, policy, nowNs: NOW });
+    expect(r.k).toBe(1);
+    expect(r.items.some((i) => i.excluded?.includes("not declared"))).toBe(true);
+  });
+
+  it("result hashes distinguish items that share an evidenceId", () => {
+    const one = plantedIn(["newswire-a.example"]);
+    const two = plantedIn(["newswire-a.example", "newswire-b.example"]);
+    const a = verify({ signal: signalFor(one), items: one, policy, nowNs: NOW });
+    const b = verify({ signal: signalFor(two), items: two, policy, nowNs: NOW });
+    expect(resultHash(a)).not.toBe(resultHash(b));
+  });
+});

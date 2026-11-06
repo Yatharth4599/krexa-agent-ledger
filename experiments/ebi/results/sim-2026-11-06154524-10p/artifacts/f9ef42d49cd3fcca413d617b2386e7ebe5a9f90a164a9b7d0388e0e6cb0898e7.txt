@@ -1,0 +1,31 @@
+{
+  "directionsBeforeRound": [
+    "HOLD",
+    "HOLD",
+    "HOLD"
+  ],
+  "directionsAfterRound": [
+    "HOLD",
+    "HOLD",
+    "HOLD"
+  ],
+  "votes": {
+    "LONG": 0,
+    "SHORT": 0,
+    "HOLD": 3
+  },
+  "finalVotes": {
+    "LONG": 0,
+    "SHORT": 0,
+    "HOLD": 3
+  },
+  "direction": "HOLD",
+  "thesis": {
+    "asset": "BTC",
+    "direction": "HOLD",
+    "confidence": 0,
+    "horizonMin": 240,
+    "maxNotionalUsd": "500000000"
+  },
+  "order": null
+}

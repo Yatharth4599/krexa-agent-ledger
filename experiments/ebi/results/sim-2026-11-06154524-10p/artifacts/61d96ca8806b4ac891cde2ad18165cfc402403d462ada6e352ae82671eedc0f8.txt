@@ -1,0 +1,26 @@
+agent: scripted/debate-3@1
+panel: cues=1,mom=100 | cues=1,mom=200 | cues=2,mom=100
+analyst0 prompt:
+agent: scripted/cue-weighted@1
+asset: BTC
+config: momentumThresholdBps=100 requiredCues=1 baseNotionalUsd=500000000
+prices: binance-public=75790.01000000@-139bps coinbase-public=75672.47@7bps hyperliquid=75793.5@-138bps
+news:
+  [synthetic-wire-a.example] BREAKING: Reuters reports a major asset manager has confirmed a spot BTC allocation
+  [synthetic-wire-b.example] BREAKING: Reuters reports a major asset manager has confirmed a spot BTC allocation
+analyst1 prompt:
+agent: scripted/cue-weighted@1
+asset: BTC
+config: momentumThresholdBps=200 requiredCues=1 baseNotionalUsd=500000000
+prices: binance-public=75790.01000000@-139bps coinbase-public=75672.47@7bps hyperliquid=75793.5@-138bps
+news:
+  [synthetic-wire-a.example] BREAKING: Reuters reports a major asset manager has confirmed a spot BTC allocation
+  [synthetic-wire-b.example] BREAKING: Reuters reports a major asset manager has confirmed a spot BTC allocation
+analyst2 prompt:
+agent: scripted/cue-weighted@1
+asset: BTC
+config: momentumThresholdBps=100 requiredCues=2 baseNotionalUsd=500000000
+prices: binance-public=75790.01000000@-139bps coinbase-public=75672.47@7bps hyperliquid=75793.5@-138bps
+news:
+  [synthetic-wire-a.example] BREAKING: Reuters reports a major asset manager has confirmed a spot BTC allocation
+  [synthetic-wire-b.example] BREAKING: Reuters reports a major asset manager has confirmed a spot BTC allocation

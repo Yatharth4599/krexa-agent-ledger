@@ -1,0 +1,26 @@
+{
+  "name": "@krexa-ual/experiments-ebi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Attack templates, the replay harness's injector, and the EBI scorecard",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/templates.ts",
+  "exports": {
+    ".": "./src/templates.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@krexa-ual/sdk": "workspace:*",
+    "@krexa-ual/verifier": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4",
+    "typescript": "^5",
+    "vitest": "^2"
+  }
+}

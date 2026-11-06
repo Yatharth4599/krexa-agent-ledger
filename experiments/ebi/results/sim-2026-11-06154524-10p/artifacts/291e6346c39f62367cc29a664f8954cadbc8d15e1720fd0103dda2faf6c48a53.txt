@@ -1,0 +1,26 @@
+agent: scripted/debate-3@1
+panel: cues=1,mom=100 | cues=1,mom=200 | cues=2,mom=100
+analyst0 prompt:
+agent: scripted/cue-weighted@1
+asset: BTC
+config: momentumThresholdBps=100 requiredCues=1 baseNotionalUsd=500000000
+prices: coinbase-public=75842.5@30bps hyperliquid=75949.5@-31bps kraken-public=75855.10000@-16bps
+news:
+  [synthetic-wire-a.example] a major asset manager has confirmed a spot BTC allocation
+  [synthetic-wire-b.example] a major asset manager has confirmed a spot BTC allocation
+analyst1 prompt:
+agent: scripted/cue-weighted@1
+asset: BTC
+config: momentumThresholdBps=200 requiredCues=1 baseNotionalUsd=500000000
+prices: coinbase-public=75842.5@30bps hyperliquid=75949.5@-31bps kraken-public=75855.10000@-16bps
+news:
+  [synthetic-wire-a.example] a major asset manager has confirmed a spot BTC allocation
+  [synthetic-wire-b.example] a major asset manager has confirmed a spot BTC allocation
+analyst2 prompt:
+agent: scripted/cue-weighted@1
+asset: BTC
+config: momentumThresholdBps=100 requiredCues=2 baseNotionalUsd=500000000
+prices: coinbase-public=75842.5@30bps hyperliquid=75949.5@-31bps kraken-public=75855.10000@-16bps
+news:
+  [synthetic-wire-a.example] a major asset manager has confirmed a spot BTC allocation
+  [synthetic-wire-b.example] a major asset manager has confirmed a spot BTC allocation

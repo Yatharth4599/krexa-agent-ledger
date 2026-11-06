@@ -31,6 +31,7 @@ import {
   killSwitchReason,
   type MonitorState,
 } from "../src/monitor.js";
+import { debateDesk, hierDesk } from "../src/aggregation.js";
 
 // ---------------------------------------------------------------- consistency
 
@@ -549,5 +550,123 @@ describe("the Monitor", () => {
     // is proved against a real node in tests/integration/tests/fc_keys.rs.
     const source = Object.keys({ evaluate, killSwitchReason, DEFAULT_MONITOR });
     expect(source).not.toContain("release");
+  });
+});
+
+// ---------------------------------------------------------------- aggregation shapes
+
+describe("debate and hier aggregation", () => {
+  const market = (bps: number): MarketView => ({
+    asset: "BTC",
+    pricesByVenue: { hyperliquid: "70000" },
+    momentumBpsByVenue: { hyperliquid: bps },
+  });
+  const news = (content: string, id = "a".repeat(64)): AnalystInput => ({
+    evidenceId: id,
+    kind: "NEWS",
+    source: "newswire-a.example",
+    content,
+    fetchedAtNs: "1762440000000000000",
+  });
+  const price: AnalystInput = {
+    evidenceId: "b".repeat(64),
+    kind: "PRICE",
+    source: "hyperliquid",
+    content: "{}",
+    fetchedAtNs: "1762440000000000000",
+  };
+  const FAKE = "BREAKING: Reuters reports a major asset manager has confirmed a spot BTC allocation";
+
+  it("debate holds when no two Analysts agree", () => {
+    // Flat tape, no news: every panel member holds.
+    expect(debateDesk("BTC", [price], market(0)).thesis.direction).toBe("HOLD");
+  });
+
+  it("debate follows a strong tape that two of three Analysts see", () => {
+    // 250 bps clears the 100 and 200 thresholds but not 300, so two agree.
+    expect(debateDesk("BTC", [price], market(250)).thesis.direction).toBe("LONG");
+  });
+
+  it("debate is fooled by a fake headline, reproducing the published negative result", () => {
+    // arXiv 2610.26438 finding (v): "peer debate fails". All three panel members read the
+    // same poisoned context, so their agreement is not independence. SPEC.md 2A.6 H2a.
+    const out = debateDesk("BTC", [news(FAKE), price], market(0));
+    expect(out.thesis.direction).toBe("LONG");
+    expect(out.order?.action).toBe("OPEN_LONG");
+  });
+
+  it("debate records what each panel member said before and after the round", () => {
+    const out = debateDesk("BTC", [news(FAKE), price], market(0));
+    const raw = JSON.parse(out.rawOutput) as Record<string, unknown>;
+    expect(raw.directionsBeforeRound).toBeDefined();
+    expect(raw.directionsAfterRound).toBeDefined();
+  });
+
+  it("hier does NOT act on a news specialist speaking alone", () => {
+    // This is the mechanism finding (v) reports as the one that works: a poisoned headline
+    // reaches the manager as one specialist's opinion, not as the whole picture.
+    const out = hierDesk("BTC", [news(FAKE), price], market(0));
+    expect(out.thesis.direction).toBe("HOLD");
+    expect(out.order).toBeNull();
+    const raw = JSON.parse(out.rawOutput) as { rationale: string };
+    expect(raw.rationale).toMatch(/news specialist spoke alone/);
+  });
+
+  it("hier acts when the tape corroborates the headline", () => {
+    const out = hierDesk("BTC", [news(FAKE), price], market(350));
+    expect(out.thesis.direction).toBe("LONG");
+  });
+
+  it("hier holds when its specialists disagree", () => {
+    // Bullish headline, bearish tape: the manager does not pick a side.
+    const out = hierDesk("BTC", [news(FAKE), price], market(-350));
+    expect(out.thesis.direction).toBe("HOLD");
+    const raw = JSON.parse(out.rawOutput) as { rationale: string };
+    expect(raw.rationale).toMatch(/disagree/);
+  });
+
+  it("hier is still fooled when the fake agrees with the tape", () => {
+    // Worth stating: hier reduces attack success, it does not eliminate it. An attacker who
+    // times a fake to agree with the tape gets through, and SPEC.md 2A.6 H2b only claims a
+    // reduction.
+    const out = hierDesk("BTC", [news(FAKE), price], market(400));
+    expect(out.thesis.direction).toBe("LONG");
+  });
+
+  it("every shape runs the same Analyst code, so a difference is attributable", () => {
+    // If the Analysts differed, a difference in attack success would not be attributable to
+    // the aggregation shape.
+    const evidence = [news(FAKE), price];
+    const view = market(250);
+    const plain = scriptedAnalyst("BTC", evidence, view);
+    const debate = debateDesk("BTC", evidence, view);
+    const hier = hierDesk("BTC", evidence, view);
+    expect(plain.modelId).toBe("scripted/cue-weighted@1");
+    expect(debate.modelId).toBe("scripted/debate-3@1");
+    expect(hier.modelId).toBe("scripted/hier-3@1");
+    // All three are pure functions of the same inputs.
+    expect(debateDesk("BTC", evidence, view).rawOutput).toBe(debate.rawOutput);
+    expect(hierDesk("BTC", evidence, view).rawOutput).toBe(hier.rawOutput);
+  });
+
+  it("both shapes produce consistent DecisionRecords", () => {
+    for (const out of [
+      debateDesk("BTC", [news(FAKE), price], market(250)),
+      hierDesk("BTC", [news(FAKE), price], market(350)),
+    ]) {
+      const built = buildDecision({
+        deskId: "x",
+        agent: "a.testnet",
+        decidedAt: "2026-11-06T16:15:00Z",
+        modelId: out.modelId,
+        prompt: out.prompt,
+        snapshot: {},
+        toolCalls: [],
+        rawOutput: out.rawOutput,
+        thesis: out.thesis,
+        order: out.order,
+      });
+      expect(built.record.consistency.failures).toEqual([]);
+    }
   });
 });

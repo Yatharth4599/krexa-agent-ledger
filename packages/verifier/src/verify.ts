@@ -71,6 +71,15 @@ export interface Signal {
 
 export interface ItemVerdict {
   evidenceId: string;
+  /**
+   * Which item bearing this `evidenceId` this verdict is about.
+   *
+   * An evidenceId is a **content** hash (SPEC.md 2A.2 item 1), so the same text reported by
+   * three outlets produces three signed items that share one id and differ only in `source`.
+   * That is precisely the H4 attack: plant one fake widely and corroboration counting is
+   * satisfied. A verdict therefore has to be per item, not per id.
+   */
+  itemIndex: number;
   /** False when the citation does not resolve to a supplied item at all. */
   resolved: boolean;
   signatureValid: boolean;
@@ -161,7 +170,20 @@ export function verify(input: VerifyInput): VerifierResult {
   const { signal, items, policy, nowNs } = input;
   const rawBodies = input.rawBodies ?? {};
   const explanation: string[] = [];
-  const byId = new Map(items.map((i) => [i.item.contentHash, i]));
+  // An evidenceId is a content hash, so several signed items can share one. Indexing to a
+  // single item would silently discard every duplicate but one, which would make the same
+  // fake planted across three outlets look like a single source and make the gate appear far
+  // stronger than it is. Index to a list.
+  const byId = new Map<string, SignedEvidenceItem[]>();
+  for (const i of items) {
+    const list = byId.get(i.item.contentHash) ?? [];
+    list.push(i);
+    byId.set(i.item.contentHash, list);
+  }
+  // Stable order, so the verifier stays deterministic whatever order the caller supplied.
+  for (const list of byId.values()) {
+    list.sort((a, b) => (a.item.source < b.item.source ? -1 : a.item.source > b.item.source ? 1 : 0));
+  }
   const maxAgeNs = BigInt(policy.maxAgeSec) * 1_000_000_000n;
   const now = BigInt(nowNs);
 
@@ -171,18 +193,19 @@ export function verify(input: VerifyInput): VerifierResult {
   // did not point at.
   const citedPriceSeries: PriceSeriesPoint[] = [];
   for (const id of signal.citations) {
-    const item = byId.get(id);
-    if (!item || item.item.kind !== "PRICE") continue;
-    const body = rawBodies[id];
-    if (!body) continue;
-    const point = extractPrice(item.item.source, body, signal.asset);
-    if (!point) continue;
-    citedPriceSeries.push({
-      ts: item.item.fetchedAt,
-      price: point.price,
-      prevDayPrice: point.prevDayPrice,
-      funding: point.funding,
-    });
+    for (const item of byId.get(id) ?? []) {
+      if (item.item.kind !== "PRICE") continue;
+      const body = rawBodies[id];
+      if (!body) continue;
+      const point = extractPrice(item.item.source, body, signal.asset);
+      if (!point) continue;
+      citedPriceSeries.push({
+        ts: item.item.fetchedAt,
+        price: point.price,
+        prevDayPrice: point.prevDayPrice,
+        funding: point.funding,
+      });
+    }
   }
   citedPriceSeries.sort((a, b) => (BigInt(a.ts) < BigInt(b.ts) ? -1 : 1));
 
@@ -211,11 +234,17 @@ export function verify(input: VerifyInput): VerifierResult {
   const supportGroups: string[] = [];
   const contradictGroups: string[] = [];
 
-  for (const id of signal.citations) {
-    const item = byId.get(id);
-    if (!item) {
+  // Citations are deduplicated: citing the same content twice is one citation, not two. The
+  // multiplicity that matters is how many *sources* carried that content, which is the list
+  // under the id and not the number of times it was mentioned.
+  const citedIds = [...new Set(signal.citations)];
+
+  for (const id of citedIds) {
+    const matching = byId.get(id) ?? [];
+    if (matching.length === 0) {
       verdicts.push({
         evidenceId: id,
+        itemIndex: 0,
         resolved: false,
         signatureValid: false,
         fresh: false,
@@ -228,67 +257,81 @@ export function verify(input: VerifyInput): VerifierResult {
       continue;
     }
 
-    const signatureValid = verifyEvidenceItem(item);
-    const fetchedAt = BigInt(item.item.fetchedAt);
-    // A timestamp in the future is treated as stale, not extra-fresh, so a fetcher cannot buy
-    // itself a longer window by lying forward. Matches the contract.
-    const fresh = fetchedAt > 0n && fetchedAt <= now && now - fetchedAt <= maxAgeNs;
-    const group = groupForSource(policy, item.item.source);
+    if (matching.length > 1) {
+      // Worth saying out loud in the explanation: this is the shape of the H4 attack, and a
+      // reader of the attack replay view needs to see it rather than infer it.
+      explanation.push(
+        `citation ${id.slice(0, 12)} is carried by ${matching.length} sources ` +
+          `[${matching.map((m) => m.item.source).join(", ")}]: identical content, so one ` +
+          `planted claim can satisfy several groups`,
+      );
+    }
 
-    let stance: Stance = "NEUTRAL";
-    let stanceSource: ItemVerdict["stanceSource"] = "none";
+    for (let itemIndex = 0; itemIndex < matching.length; itemIndex++) {
+      const item = matching[itemIndex]!;
+      const signatureValid = verifyEvidenceItem(item);
+      const fetchedAt = BigInt(item.item.fetchedAt);
+      // A timestamp in the future is treated as stale, not extra-fresh, so a fetcher cannot buy
+      // itself a longer window by lying forward. Matches the contract.
+      const fresh = fetchedAt > 0n && fetchedAt <= now && now - fetchedAt <= maxAgeNs;
+      const group = groupForSource(policy, item.item.source);
 
-    if (item.item.kind === "PRICE") {
-      const computed = priceStance(item, rawBodies[id], signal.asset, signal.direction);
-      if (computed) {
-        stance = computed.stance;
-        stanceSource = "recomputed";
-        explanation.push(`${item.item.source}: ${computed.detail}`);
+      let stance: Stance = "NEUTRAL";
+      let stanceSource: ItemVerdict["stanceSource"] = "none";
+
+      if (item.item.kind === "PRICE") {
+        const computed = priceStance(item, rawBodies[id], signal.asset, signal.direction);
+        if (computed) {
+          stance = computed.stance;
+          stanceSource = "recomputed";
+          explanation.push(`${item.item.source}: ${computed.detail}`);
+        } else {
+          // No raw body, or an unparseable one. The verifier will not fall back to the
+          // Analyst's word for something it is supposed to check itself.
+          stance = "NEUTRAL";
+          stanceSource = "none";
+          explanation.push(
+            `${item.item.source}: PRICE item could not be recomputed, counted as NEUTRAL`,
+          );
+        }
       } else {
-        // No raw body, or an unparseable one. The verifier will not fall back to the
-        // Analyst's word for something it is supposed to check itself.
-        stance = "NEUTRAL";
-        stanceSource = "none";
-        explanation.push(
-          `${item.item.source}: PRICE item could not be recomputed, counted as NEUTRAL`,
-        );
+        const declared = signal.declaredStance?.[id];
+        if (declared) {
+          stance = declared;
+          stanceSource = "declared";
+          explanation.push(
+            `${item.item.source}: ${item.item.kind} stance ${declared} is the Analyst's claim, not checked`,
+          );
+        }
       }
-    } else {
-      const declared = signal.declaredStance?.[id];
-      if (declared) {
-        stance = declared;
-        stanceSource = "declared";
-        explanation.push(
-          `${item.item.source}: ${item.item.kind} stance ${declared} is the Analyst's claim, not checked`,
-        );
+
+      let counted = false;
+      let excluded: string | undefined;
+      if (!signatureValid) excluded = "signature does not verify";
+      else if (!fresh) excluded = `fetched outside the ${policy.maxAgeSec}s freshness window`;
+      else if (!group) excluded = `source "${item.item.source}" is not declared in any policy group`;
+      else if (stance === "NEUTRAL") excluded = "neither supports nor contradicts the thesis";
+      else {
+        counted = true;
+        const bucket = stance === "SUPPORT" ? supportGroups : contradictGroups;
+        if (!bucket.includes(group)) bucket.push(group);
       }
-    }
+      if (excluded) explanation.push(`${item.item.source}: not counted, ${excluded}`);
 
-    let counted = false;
-    let excluded: string | undefined;
-    if (!signatureValid) excluded = "signature does not verify";
-    else if (!fresh) excluded = `fetched outside the ${policy.maxAgeSec}s freshness window`;
-    else if (!group) excluded = `source "${item.item.source}" is not declared in any policy group`;
-    else if (stance === "NEUTRAL") excluded = "neither supports nor contradicts the thesis";
-    else {
-      counted = true;
-      const bucket = stance === "SUPPORT" ? supportGroups : contradictGroups;
-      if (!bucket.includes(group)) bucket.push(group);
+      verdicts.push({
+        evidenceId: id,
+        itemIndex,
+        resolved: true,
+        signatureValid,
+        fresh,
+        group,
+        source: item.item.source,
+        stance,
+        stanceSource,
+        counted,
+        excluded,
+      });
     }
-    if (excluded) explanation.push(`${item.item.source}: not counted, ${excluded}`);
-
-    verdicts.push({
-      evidenceId: id,
-      resolved: true,
-      signatureValid,
-      fresh,
-      group,
-      source: item.item.source,
-      stance,
-      stanceSource,
-      counted,
-      excluded,
-    });
   }
 
   const k = Math.max(0, supportGroups.length - contradictGroups.length);
@@ -305,10 +348,12 @@ export function verify(input: VerifyInput): VerifierResult {
   // Only items that passed signature and freshness go on chain. An item excluded merely for
   // being NEUTRAL is still included, because the contract recounts groups itself and the
   // receipt should show what was offered.
+  // One bundle entry per surviving *item*, not per citation. When the same content came from
+  // three sources, all three go on chain so the contract can recount the groups itself.
   const bundleItems = verdicts
     .filter((v) => v.resolved && v.signatureValid && v.fresh)
     .map((v) => {
-      const item = byId.get(v.evidenceId)!;
+      const item = byId.get(v.evidenceId)![v.itemIndex]!;
       return { ...item, stance: v.stance };
     });
 
@@ -341,6 +386,8 @@ export function resultHash(result: VerifierResult): string {
     canonical({
       items: result.items.map((i) => ({
         evidenceId: i.evidenceId,
+        itemIndex: i.itemIndex,
+        source: i.source ?? null,
         counted: i.counted,
         group: i.group ?? null,
         stance: i.stance,

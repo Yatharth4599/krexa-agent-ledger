@@ -29,7 +29,7 @@ This section is updated at every milestone and states only what actually runs.
 | M1 | Canonical JSON and hash test vectors, contract core, policy commit, evidence gate, hash chain, kill switch | **done**: 67 Rust tests, 57 TypeScript tests, wasm builds |
 | M2 | Sandbox integration tests, SDK, evidence fetcher, testnet deploy, data archive, `pnpm demo` | **done**: 15 sandbox tests, SDK, testnet contract live, signed fetcher, archive recording on a 15 minute grid, `pnpm demo` green |
 | M3 | Deterministic verifier, agent runtime, desks `plain` and `ebi` | **done**: verifier (43 tests), runtime (51 tests), `plain`/`ebi`/`bh` desks run over archived data on sandbox, `pnpm ual replay` verifies every commitment |
-| M4 | Replay harness, attack injector, `debate` and `hier` desks, pilot run | not started |
+| M4 | Replay harness, attack injector, `debate` and `hier` desks, pilot run | **done**: 18 attack cases across 6 templates, 5 desks, pilot run in [experiments/ebi/FINDINGS.md](experiments/ebi/FINDINGS.md), budget in [BUDGET.md](experiments/ebi/BUDGET.md) awaiting approval |
 | M5 | Full runs and scorecard metrics | not started |
 | M6 | Web leaderboard, explorer, attack replay, MCP server | not started |
 | M7 | Prompt-injection attack demo, skill file, threat model, allocator CSV | not started |
@@ -45,7 +45,7 @@ These three work now, with no keys and no manual steps:
 ```bash
 git clone https://github.com/Yatharth4599/krexa-agent-ledger && cd krexa-agent-ledger
 ./scripts/setup.sh      # checks toolchain, pnpm install, builds the contract, fetches a sandbox node
-pnpm test               # 67 Rust unit + 15 near-workspaces sandbox + 145 TypeScript tests
+pnpm test               # 67 Rust unit + 15 near-workspaces sandbox + 246 TypeScript tests
 pnpm demo               # local sandbox end to end: policy, evidence gate, fabricated indicator panel caught, kill switch, chain verify
 ```
 

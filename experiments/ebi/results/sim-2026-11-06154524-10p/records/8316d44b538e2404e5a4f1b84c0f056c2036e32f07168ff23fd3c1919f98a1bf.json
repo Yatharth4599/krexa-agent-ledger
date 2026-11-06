@@ -1,0 +1,41 @@
+{
+  "schema": "krexa.ual.decision/1",
+  "deskId": "debate",
+  "agent": "trader-debate.owner.test.near",
+  "decidedAt": "2026-11-06T17:30:00.168Z",
+  "modelId": "scripted/debate-3@1",
+  "promptHash": "11156313604628350225b1fa9a8949337b0c39bee15f14e9fad13864c32b16c8",
+  "dataSnapshotHash": "420581bd10fd778b5de31aafc9ab69e7574e64d77c672b804eb892bf983c2086",
+  "toolCallsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "rawOutputHash": "1eeae96e06f09d8b4099a6c9dc93b98b4bc525f34c38ddf48d4a625cffd1fd72",
+  "parsed": {
+    "thesis": {
+      "asset": "BTC",
+      "direction": "LONG",
+      "confidence": 7600,
+      "horizonMin": 240,
+      "maxNotionalUsd": "500000000"
+    },
+    "order": {
+      "action": "OPEN_LONG",
+      "asset": "BTC",
+      "notionalUsd": "500000000"
+    }
+  },
+  "consistency": {
+    "result": "NA",
+    "checker": "krexa.consistency/1",
+    "failures": []
+  },
+  "aiSig": {
+    "provider": "none",
+    "sigHash": null,
+    "verified": false
+  },
+  "artifacts": {
+    "prompt": "11156313604628350225b1fa9a8949337b0c39bee15f14e9fad13864c32b16c8",
+    "snapshot": "420581bd10fd778b5de31aafc9ab69e7574e64d77c672b804eb892bf983c2086",
+    "toolCalls": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "rawOutput": "1eeae96e06f09d8b4099a6c9dc93b98b4bc525f34c38ddf48d4a625cffd1fd72"
+  }
+}

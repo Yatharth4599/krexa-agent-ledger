@@ -1,0 +1,32 @@
+{
+  "cueLog": [
+    "synthetic-wire-a.example: cues=[breaking-tag,named-source] score=2",
+    "synthetic-wire-b.example: cues=[breaking-tag,named-source] score=2",
+    "synthetic-wire-c.example: cues=[breaking-tag,named-source] score=2"
+  ],
+  "newsScore": 6,
+  "avgMomentum": -4,
+  "priceDirection": 0,
+  "combined": 1,
+  "thesis": {
+    "asset": "BTC",
+    "direction": "LONG",
+    "confidence": 5500,
+    "horizonMin": 240,
+    "maxNotionalUsd": "500000000"
+  },
+  "order": {
+    "action": "OPEN_LONG",
+    "asset": "BTC",
+    "notionalUsd": "500000000"
+  },
+  "citations": [
+    "b3dd5fc3bc35f8393148f043c697284b0f4849bb6ff34a2f50db2c0535fb33a8",
+    "b3dd5fc3bc35f8393148f043c697284b0f4849bb6ff34a2f50db2c0535fb33a8",
+    "b3dd5fc3bc35f8393148f043c697284b0f4849bb6ff34a2f50db2c0535fb33a8",
+    "cc0bc0433ff25f400136f80ee489854a8cfdc318cd89c23009adff67ece653a7",
+    "1b143860e77188fea613688a65d904e46dd4531bec2d6f2d5652fb8408ce7645",
+    "3c265f10a074df4f531db6c10bef2a2f74ce760b34337ecd43aa58c909e137f5",
+    "5bb8f38c8356aa2d4ac96c0b12ebdab1a5c3ab144f116809ac8f4e60e7dd8f5a"
+  ]
+}

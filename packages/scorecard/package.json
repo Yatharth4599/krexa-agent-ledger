@@ -1,0 +1,21 @@
+{
+  "name": "@krexa-ual/scorecard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pure statistics for the EBI metrics: Wilson intervals, paired tests, multiple-testing thresholds",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "^5",
+    "vitest": "^2"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "directionsBeforeRound": [
+    "LONG",
+    "LONG",
+    "LONG"
+  ],
+  "directionsAfterRound": [
+    "LONG",
+    "LONG",
+    "LONG"
+  ],
+  "votes": {
+    "LONG": 3,
+    "SHORT": 0,
+    "HOLD": 0
+  },
+  "finalVotes": {
+    "LONG": 3,
+    "SHORT": 0,
+    "HOLD": 0
+  },
+  "direction": "LONG",
+  "thesis": {
+    "asset": "BTC",
+    "direction": "LONG",
+    "confidence": 7600,
+    "horizonMin": 240,
+    "maxNotionalUsd": "500000000"
+  },
+  "order": {
+    "action": "OPEN_LONG",
+    "asset": "BTC",
+    "notionalUsd": "500000000"
+  }
+}

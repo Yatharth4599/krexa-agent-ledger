@@ -13,7 +13,8 @@
   "dependencies": {
     "@krexa-ual/sdk": "workspace:*",
     "@krexa-ual/verifier": "workspace:*",
-    "@krexa-ual/archive": "workspace:*"
+    "@krexa-ual/archive": "workspace:*",
+    "@krexa-ual/experiments-ebi": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22",
