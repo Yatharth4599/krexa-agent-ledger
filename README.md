@@ -31,7 +31,7 @@ This section is updated at every milestone and states only what actually runs.
 | M3 | Deterministic verifier, agent runtime, desks `plain` and `ebi` | **done**: verifier (43 tests), runtime (51 tests), `plain`/`ebi`/`bh` desks run over archived data on sandbox, `pnpm ual replay` verifies every commitment |
 | M4 | Replay harness, attack injector, `debate` and `hier` desks, pilot run | **done**: 18 attack cases across 6 templates, 5 desks, pilot run in [experiments/ebi/FINDINGS.md](experiments/ebi/FINDINGS.md), budget in [BUDGET.md](experiments/ebi/BUDGET.md) awaiting approval |
 | M5 | Full runs and scorecard metrics | **scorecard and `pnpm ebi:report` done** (82 tests, [docs/RESULTS.md](docs/RESULTS.md) regenerates byte-identically); the paid LLM runs are approved and blocked on an archive window and an API key, see [BUDGET.md](experiments/ebi/BUDGET.md) |
-| M6 | Web leaderboard, explorer, attack replay, MCP server | **web done**: `pnpm web`, explorer recomputes hashes in-browser against the live testnet chain; MCP server next |
+| M6 | Web leaderboard, explorer, attack replay, MCP server | **done**: `pnpm web` explorer recomputes hashes in-browser against the live testnet chain; `pnpm mcp` serves the ledger read-only over stdio, 20 tests through a real MCP client |
 | M7 | Prompt-injection attack demo, skill file, threat model, allocator CSV | not started |
 | M8 | README for judges, clean-container reproducibility | not started |
 

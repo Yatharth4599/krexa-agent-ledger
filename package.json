@@ -31,6 +31,7 @@
     "verifier:codehash": "pnpm -F @krexa-ual/verifier codehash",
     "runtime:sim": "pnpm run build:contract && bash scripts/with-sandbox.sh pnpm -F @krexa-ual/runtime sim",
     "ual": "pnpm -F @krexa-ual/runtime exec tsx src/main.ts",
-    "testnet:walkthrough": "pnpm -F @krexa-ual/runtime exec tsx ../../scripts/testnet-walkthrough.ts"
+    "testnet:walkthrough": "pnpm -F @krexa-ual/runtime exec tsx ../../scripts/testnet-walkthrough.ts",
+    "mcp": "pnpm -F @krexa-ual/mcp start"
   }
 }

@@ -1,0 +1,24 @@
+{
+  "name": "@krexa-ual/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP server exposing the ledger read-only over stdio. No tool moves value.",
+  "license": "MIT",
+  "type": "module",
+  "bin": { "krexa-ual-mcp": "./src/cli.ts" },
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@krexa-ual/sdk": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.32.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4",
+    "typescript": "^5",
+    "vitest": "^2"
+  }
+}
