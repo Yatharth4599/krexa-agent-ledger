@@ -1,0 +1,30 @@
+#!/bin/sh
+# Blocks a commit that contains a secret. Installed by scripts/setup.sh via
+#   git config core.hooksPath .githooks
+# Bypass is deliberately not documented here. If this fires, look at what you staged.
+
+set -e
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-commit: gitleaks is not installed. Install it (brew install gitleaks) or the hook cannot protect you." >&2
+  echo "pre-commit: refusing the commit rather than letting a secret through unchecked." >&2
+  exit 1
+fi
+
+echo "pre-commit: scanning staged changes with gitleaks"
+if ! gitleaks protect --staged --no-banner --redact --verbose; then
+  echo "" >&2
+  echo "pre-commit: a secret was found in the staged changes. Nothing was committed." >&2
+  echo "pre-commit: move the value into .env (gitignored) and reference it from .env.example." >&2
+  exit 1
+fi
+
+# Belt and braces: these must never be staged, whatever gitleaks thinks.
+BLOCKED=$(git diff --cached --name-only | grep -E '(^|/)\.env$|(^|/)\.env\.(local|production|testnet|mainnet)$|\.pem$|\.key$|near-credentials' || true)
+if [ -n "$BLOCKED" ]; then
+  echo "pre-commit: refusing to commit these paths:" >&2
+  echo "$BLOCKED" >&2
+  exit 1
+fi
+
+echo "pre-commit: clean"

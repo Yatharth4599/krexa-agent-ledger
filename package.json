@@ -1,0 +1,23 @@
+{
+  "name": "krexa-agent-ledger",
+  "private": true,
+  "version": "0.0.0",
+  "license": "MIT",
+  "packageManager": "pnpm@10.9.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/**\" build",
+    "test": "pnpm run test:rust && pnpm run test:ts",
+    "test:rust": "cargo test --workspace --manifest-path contracts/Cargo.toml",
+    "test:ts": "pnpm -r test",
+    "test:sandbox": "echo \"not built yet (M2)\" && exit 1",
+    "demo": "echo \"not built yet (M2)\" && exit 1",
+    "web": "echo \"not built yet (M6)\" && exit 1",
+    "ebi:report": "echo \"not built yet (M5)\" && exit 1",
+    "lint": "cargo clippy --workspace --manifest-path contracts/Cargo.toml -- -D warnings",
+    "fmt": "cargo fmt --manifest-path contracts/Cargo.toml --all",
+    "secrets": "gitleaks detect --no-banner --redact"
+  }
+}
