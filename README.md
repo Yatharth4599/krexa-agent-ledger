@@ -27,7 +27,7 @@ This section is updated at every milestone and states only what actually runs.
 | Milestone | What it covers | State |
 |---|---|---|
 | M1 | Canonical JSON and hash test vectors, contract core, policy commit, evidence gate, hash chain, kill switch | **done**: 67 Rust tests, 57 TypeScript tests, wasm builds |
-| M2 | Sandbox integration tests, SDK, testnet deploy, `pnpm demo` | **mostly done**: 15 sandbox tests, SDK, testnet contract live, `pnpm demo` green. Evidence fetcher app and the data archive recorder are still to come. |
+| M2 | Sandbox integration tests, SDK, evidence fetcher, testnet deploy, data archive, `pnpm demo` | **done**: 15 sandbox tests, SDK, testnet contract live, signed fetcher, archive recording on a 15 minute grid, `pnpm demo` green |
 | M3 | Deterministic verifier, agent runtime, desks `plain` and `ebi` | not started |
 | M4 | Replay harness, attack injector, `debate` and `hier` desks, pilot run | not started |
 | M5 | Full runs and scorecard metrics | not started |
@@ -64,6 +64,40 @@ pnpm demo               # local sandbox: policy, evidence gate, attack blocked, 
 pnpm ebi:report         # recomputes docs/RESULTS.md from recorded receipts
 pnpm web                # http://localhost:3000
 ```
+
+## Data archive
+
+Public market data is recorded on a 15 minute grid from 6 Nov 2026 for deterministic replay.
+Four independent exchange groups (Hyperliquid, Binance, Coinbase, Kraken), every response
+hashed, every failed attempt recorded as an explicit gap.
+
+```bash
+pnpm archive:stats     # per-source coverage and gap counts
+pnpm archive:verify    # rehash every stored body against the index
+./scripts/archive-start.sh   # run the recorder detached
+./scripts/archive-stop.sh
+```
+
+Terms for each source are in [data/archive/SOURCES.md](data/archive/SOURCES.md). Polymarket is
+in the source list but unreachable from the operator's network (ISP-level DNS blocking), so
+every round records an explicit gap for it rather than dropping it from the design. The
+consequence for the study, and the replacement independence groups, are in
+[docs/DATA_SOURCES.md](docs/DATA_SOURCES.md).
+
+## Evidence fetcher
+
+```bash
+pnpm fetcher:keygen         # generate an ed25519 key; goes in .env, never committed
+pnpm fetcher:once           # fetch live and sign
+pnpm fetcher:from-archive   # sign an archived snapshot with its own timestamp
+```
+
+The fetcher runs as an ordinary process, not inside an enclave, and is registered with an
+attestation hash of 64 zeros. Every receipt downstream therefore carries `attested: false`.
+That is a deliberate, labelled outcome, not an unfinished one:
+[docs/TEE.md](docs/TEE.md) records what was checked (NEAR AI Cloud attests model inference
+only, not arbitrary fetches; OutLayer is the right shape but its HTTP-from-enclave behaviour
+is undocumented) and what a working TEE fetch would and would not prove.
 
 ## Results
 

@@ -20,6 +20,13 @@
     "fmt": "cargo fmt --all",
     "secrets": "gitleaks detect --no-banner --redact",
     "typecheck": "pnpm -r --if-present typecheck",
-    "build:contract": "cargo near build non-reproducible-wasm --manifest-path contracts/ual/Cargo.toml"
+    "build:contract": "cargo near build non-reproducible-wasm --manifest-path contracts/ual/Cargo.toml",
+    "archive:once": "pnpm -F @krexa-ual/archive once",
+    "archive:loop": "pnpm -F @krexa-ual/archive loop",
+    "archive:verify": "pnpm -F @krexa-ual/archive verify",
+    "archive:stats": "pnpm -F @krexa-ual/archive stats",
+    "fetcher:keygen": "pnpm -F @krexa-ual/fetcher keygen",
+    "fetcher:once": "pnpm -F @krexa-ual/fetcher once",
+    "fetcher:from-archive": "pnpm -F @krexa-ual/fetcher from-archive"
   }
 }

@@ -32,3 +32,5 @@ coverage/
 /target/
 contracts/target/
 .sandbox/
+data/archive/recorder.pid
+data/archive/recorder.log

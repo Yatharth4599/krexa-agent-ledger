@@ -1,0 +1,23 @@
+{
+  "name": "@krexa-ual/fetcher",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fetches from the fixed source list and signs each item with ed25519 (local unattested build)",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "keygen": "tsx src/main.ts --keygen",
+    "once": "tsx src/main.ts --once",
+    "from-archive": "tsx src/main.ts --from-archive",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@krexa-ual/sdk": "workspace:*",
+    "@krexa-ual/archive": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4",
+    "typescript": "^5"
+  }
+}

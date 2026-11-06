@@ -1,0 +1,23 @@
+{
+  "name": "@krexa-ual/archive",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hashed snapshots of public market data on a 15 minute grid, for deterministic replay",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "once": "tsx src/main.ts --once",
+    "loop": "tsx src/main.ts --loop",
+    "verify": "tsx src/main.ts --verify",
+    "stats": "tsx src/main.ts --stats",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@krexa-ual/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4",
+    "typescript": "^5"
+  }
+}
