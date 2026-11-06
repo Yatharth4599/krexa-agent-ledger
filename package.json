@@ -27,6 +27,7 @@
     "archive:stats": "pnpm -F @krexa-ual/archive stats",
     "fetcher:keygen": "pnpm -F @krexa-ual/fetcher keygen",
     "fetcher:once": "pnpm -F @krexa-ual/fetcher once",
-    "fetcher:from-archive": "pnpm -F @krexa-ual/fetcher from-archive"
+    "fetcher:from-archive": "pnpm -F @krexa-ual/fetcher from-archive",
+    "verifier:codehash": "pnpm -F @krexa-ual/verifier codehash"
   }
 }

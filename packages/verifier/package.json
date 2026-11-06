@@ -1,0 +1,24 @@
+{
+  "name": "@krexa-ual/verifier",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Deterministic offline verifier: citation resolution, indicator recompute, independence-group counting",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "vitest run",
+    "codehash": "tsx src/print-codehash.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@krexa-ual/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4",
+    "typescript": "^5",
+    "vitest": "^2"
+  }
+}

@@ -28,7 +28,7 @@ This section is updated at every milestone and states only what actually runs.
 |---|---|---|
 | M1 | Canonical JSON and hash test vectors, contract core, policy commit, evidence gate, hash chain, kill switch | **done**: 67 Rust tests, 57 TypeScript tests, wasm builds |
 | M2 | Sandbox integration tests, SDK, evidence fetcher, testnet deploy, data archive, `pnpm demo` | **done**: 15 sandbox tests, SDK, testnet contract live, signed fetcher, archive recording on a 15 minute grid, `pnpm demo` green |
-| M3 | Deterministic verifier, agent runtime, desks `plain` and `ebi` | not started |
+| M3 | Deterministic verifier, agent runtime, desks `plain` and `ebi` | **verifier done** (43 tests, indicator recompute catches a fabricated RSI and momentum); agent runtime next |
 | M4 | Replay harness, attack injector, `debate` and `hier` desks, pilot run | not started |
 | M5 | Full runs and scorecard metrics | not started |
 | M6 | Web leaderboard, explorer, attack replay, MCP server | not started |
@@ -45,8 +45,8 @@ These three work now, with no keys and no manual steps:
 ```bash
 git clone https://github.com/Yatharth4599/krexa-agent-ledger && cd krexa-agent-ledger
 ./scripts/setup.sh      # checks toolchain, pnpm install, builds the contract, fetches a sandbox node
-pnpm test               # 67 Rust unit + 15 near-workspaces sandbox + 102 TypeScript tests
-pnpm demo               # local sandbox end to end: policy, evidence gate, attack blocked, kill switch, chain verify
+pnpm test               # 67 Rust unit + 15 near-workspaces sandbox + 145 TypeScript tests
+pnpm demo               # local sandbox end to end: policy, evidence gate, fabricated indicator panel caught, kill switch, chain verify
 ```
 
 `pnpm demo` exits non-zero if any assertion fails, so it is a test as much as a demonstration.
@@ -98,6 +98,32 @@ That is a deliberate, labelled outcome, not an unfinished one:
 [docs/TEE.md](docs/TEE.md) records what was checked (NEAR AI Cloud attests model inference
 only, not arbitrary fetches; OutLayer is the right shape but its HTTP-from-enclave behaviour
 is undocumented) and what a working TEE fetch would and would not prove.
+
+## What the verifier checks, and what it does not
+
+`packages/verifier` is pure, offline and deterministic, and its code hash is pinned in every
+policy (`pnpm verifier:codehash`). Changing its logic invalidates every policy that pinned the
+old hash, which is deliberate: the stance rules and indicator tolerances are part of what a
+desk committed to.
+
+**Checked by arithmetic, so not forgeable:** that a citation resolves to an item signed by a
+registered fetcher key; that the item was fetched inside the freshness window; which
+independence group the policy assigns its source to; and any claimed RSI, 24h momentum or
+funding figure, recomputed from the cited raw prices.
+
+**Taken on the Analyst's word:** whether a *news* item supports or contradicts the thesis.
+
+That second line is the honest boundary. A deterministic function cannot read a headline and
+decide what it implies for a trade, and an LLM inside the verifier would be the very thing an
+injected fake attacks. So **the gate does not detect fake news.** It refuses to size a trade on
+a single source and demands that independent groups agree. Protection comes from
+corroboration, not detection, and SPEC.md 2A.6 H4 states the limit of that: plant the same fake
+in three declared groups and the trade goes through at full size. That limit is measured in M4,
+not argued away.
+
+Price claims are different and genuinely checked, which is why the fabricated indicator panel
+is defeated rather than diluted: `pnpm demo` shows a claimed RSI of 25.00 dropped against a
+recomputed 100.00 over a cited 15 point series.
 
 ## Results
 

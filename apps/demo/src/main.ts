@@ -31,6 +31,7 @@ import {
   type Receipt,
   type SignedEvidenceItem,
 } from "@krexa-ual/sdk";
+import { computeVerifierCodeHash, verify, type Signal } from "@krexa-ual/verifier";
 import { Worker, type NearAccount } from "near-workspaces";
 
 import { WorkspacesCaller } from "./caller.js";
@@ -113,7 +114,34 @@ const DESK_PLAIN = "plain";
 /** Deliberately fake. Labelled everywhere it appears. */
 const FAKE_HEADLINE =
   "BREAKING: major asset manager confirms spot BTC allocation, sources say";
-const HL_PRICE_SNAPSHOT = '{"coin":"BTC","mid":"68012.5","funding":"0.0000125"}';
+/**
+ * A Hyperliquid `metaAndAssetCtxs` response, in the real shape the archive records, so the
+ * verifier's extractor reads it the same way it reads live data. BTC at 70,000 against a
+ * previous day of 69,000 is +144 bps.
+ */
+const HL_PRICE_SNAPSHOT = JSON.stringify([
+  { universe: [{ name: "BTC", szDecimals: 5 }, { name: "ETH", szDecimals: 4 }] },
+  [
+    {
+      midPx: "70000.0",
+      markPx: "69999.0",
+      oraclePx: "70001.0",
+      prevDayPx: "69000.0",
+      funding: "0.0000125",
+      dayBaseVlm: "50065.5",
+      openInterest: "42730.2",
+    },
+    {
+      midPx: "2200.0",
+      markPx: "2200.0",
+      oraclePx: "2200.0",
+      prevDayPx: "2200.0",
+      funding: "0.0",
+      dayBaseVlm: "1.0",
+      openInterest: "1.0",
+    },
+  ],
+]);
 const NEWSWIRE_B_CONFIRMS = "Second outlet confirms allocation, filing visible on registry";
 
 const AGENT_METHODS = ["submit_evidence", "submit_intent", "record_fill", "record_mark"];
@@ -216,12 +244,14 @@ async function run(worker: Worker): Promise<void> {
 
   // ---------------------------------------------------------------- verifier code hash
   beat("Pin the verifier build into the policy");
-  // In M3 this is the real hash of packages/verifier's build output. Until that exists, the
-  // demo pins a placeholder and says so, rather than printing a number that looks derived.
-  const verifierCodeHash = sha256Hex("krexa.ual.verifier/placeholder-until-M3");
-  say(`verifierCodeHash ${verifierCodeHash.slice(0, 32)}...`);
-  note("DEMO DATA: a placeholder until packages/verifier lands in M3. The contract only");
-  note("checks that a bundle's hash equals the one the policy names, which it does here.");
+  // The real hash of packages/verifier's behavioural source, not a placeholder. Changing
+  // extract.ts, indicators.ts or verify.ts changes this and invalidates every policy that
+  // pinned the old one, which is the intended friction: the stance rules and indicator
+  // tolerances are part of what a desk committed to.
+  const verifierCodeHash = computeVerifierCodeHash();
+  say(`verifierCodeHash ${verifierCodeHash}`);
+  note("Recompute it yourself with: pnpm verifier:codehash");
+  note("The contract refuses a bundle whose verifierCodeHash is not the one the policy names.");
 
   // ---------------------------------------------------------------- fetcher
   beat("Register an evidence fetcher");
@@ -466,6 +496,120 @@ async function run(worker: Worker): Promise<void> {
   note("That limit is measured in M4, not hidden.");
 
   // ---------------------------------------------------------------- tampering
+  // ---------------------------------------------------------------- fake indicator panel
+  beat("A fabricated indicator panel is caught by recompute");
+  note("SYNTHETIC ATTACK: the Analyst cites real prices but claims a fabricated RSI and");
+  note("momentum, the attack arXiv 2610.26438 finding (iii) reports at 91 percent against an");
+  note("agent about to hold. Nothing about the headline is judged here: the claim is simply");
+  note("recomputed from the cited prices, which is arithmetic anyone can check.");
+
+  const priceItem = corroborated.items[1]!;
+  const honestSignal: Signal = {
+    asset: "BTC",
+    direction: "LONG",
+    confidence: 6500,
+    horizonMin: 240,
+    citations: [fakeItem.item.contentHash, priceItem.item.contentHash],
+    declaredStance: { [fakeItem.item.contentHash]: "SUPPORT" },
+    claims: [{ indicator: "MOMENTUM_24H_BPS", asset: "BTC", value: 144 }],
+  };
+  const verifierPolicy = {
+    maxAgeSec: 900,
+    groups: policyFor(DESK_EBI, true, verifierCodeHash).evidence!.groups,
+    sizeTableBps: [0, 0, 5000, 10000],
+    verifierCodeHash,
+  };
+  const rawBodies = { [priceItem.item.contentHash]: HL_PRICE_SNAPSHOT };
+
+  const honest = verify({
+    signal: honestSignal,
+    items: corroborated.items,
+    rawBodies,
+    policy: verifierPolicy,
+    nowNs: nowNs(),
+  });
+  check(honest.droppedClaims.length === 0, "an honest momentum claim of +144 bps survives recompute");
+  check(honest.k === 2, `the verifier agrees with the chain: k=${honest.k}`);
+
+  // RSI_14 needs fifteen price points, so cite a real fifteen-snapshot series. Prices rise
+  // steadily across it, which makes the true RSI 100.00 and a claimed 25.00 a fabrication
+  // rather than a rounding dispute.
+  const seriesItems: SignedEvidenceItem[] = [];
+  const seriesBodies: Record<string, string> = {};
+  for (let i = 0; i < 15; i++) {
+    const mid = (69_000 + i * 70).toFixed(1);
+    const body = JSON.stringify([
+      { universe: [{ name: "BTC", szDecimals: 5 }] },
+      [{ midPx: mid, markPx: mid, oraclePx: mid, prevDayPx: "69000.0", funding: "0.0000125", dayBaseVlm: "50000" }],
+    ]);
+    const item = signEvidenceItem(
+      buildEvidencePayload({
+        content: body,
+        kind: "PRICE",
+        source: "hyperliquid",
+        sourceGroup: "exchange-hl",
+        url: "https://api.hyperliquid.xyz/info",
+        // Fifteen minutes apart, matching the archive grid, ending now.
+        fetchedAtNs: (BigInt(Date.now() - (14 - i) * 60_000) * 1_000_000n).toString(),
+      }),
+      Buffer.from(fetcher.secretKeyHex, "hex"),
+      "SUPPORT",
+    );
+    seriesItems.push(item);
+    seriesBodies[item.item.contentHash] = body;
+  }
+
+  const fabricated = verify({
+    signal: {
+      ...honestSignal,
+      citations: [fakeItem.item.contentHash, ...seriesItems.map((i) => i.item.contentHash)],
+      claims: [
+        // "BTC up 8% today, RSI 25, deeply oversold, strong buy" against prices that are
+        // actually up 1.4% and rising monotonically.
+        { indicator: "MOMENTUM_24H_BPS", asset: "BTC", value: 800 },
+        { indicator: "RSI_14", asset: "BTC", value: 2500 },
+      ],
+    },
+    items: [fakeItem, ...seriesItems],
+    rawBodies: seriesBodies,
+    policy: verifierPolicy,
+    nowNs: nowNs(),
+  });
+  for (const line of fabricated.explanation.filter((l) => l.includes("DROPPED"))) {
+    blocked(line);
+  }
+  check(
+    fabricated.droppedClaims.length === 2,
+    "both fabricated claims are dropped, not merely flagged",
+  );
+  check(
+    fabricated.claimChecks.some((c) => c.claim.indicator === "MOMENTUM_24H_BPS" && c.recomputed === 142),
+    "the recomputed momentum comes from the cited prices, not from the claim",
+  );
+  check(
+    fabricated.claimChecks.some((c) => c.claim.indicator === "RSI_14" && c.recomputed === 10000),
+    "the recomputed RSI over the cited 15 point series is 100.00, against a claimed 25.00",
+  );
+  note("The citations themselves still stand, so the trade is then sized by whatever");
+  note("corroboration genuinely exists rather than being refused outright.");
+
+  beat("What the verifier does NOT check");
+  const newsVerdict = fabricated.items.find((i) => i.source === "newswire-a.example")!;
+  check(
+    newsVerdict.stanceSource === "declared",
+    "a NEWS item's stance is the Analyst's claim, recorded as unchecked",
+  );
+  const priceVerdict = fabricated.items.find((i) => i.source === "hyperliquid")!;
+  check(
+    priceVerdict.stanceSource === "recomputed",
+    "a PRICE item's stance is recomputed from the bytes",
+  );
+  note("This is the honest boundary. A deterministic function cannot read a headline and");
+  note("decide what it implies for a trade, and an LLM in the verifier would be the very");
+  note("thing an injected fake attacks. So the gate does not detect fake news: it refuses to");
+  note("size a trade on one source and demands that independent groups agree. Protection");
+  note("comes from corroboration, not detection. docs/RECEIPTS.md states the same boundary.");
+
   beat("A tampered item taints the whole bundle");
   const tampered: SignedEvidenceItem = {
     ...fakeItem,

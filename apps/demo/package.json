@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@krexa-ual/sdk": "workspace:*"
+    "@krexa-ual/sdk": "workspace:*",
+    "@krexa-ual/verifier": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22",
