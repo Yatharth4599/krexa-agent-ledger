@@ -18,7 +18,9 @@ cd "$(dirname "$0")/.."
 NETWORK="testnet"
 OWNER_ACCOUNT="${UAL_OWNER_ACCOUNT:-krexa-ual.testnet}"
 CONTRACT_ID="${UAL_CONTRACT_ID:-ual.${OWNER_ACCOUNT}}"
-WASM="contracts/target/near/ual/ual.wasm"
+# The Cargo workspace is at the repo root (tests/integration needs to inherit from it), so
+# cargo-near writes here and not under contracts/.
+WASM="target/near/ual/ual.wasm"
 
 say() { printf '%s\n' "$*"; }
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
@@ -40,7 +42,10 @@ say "contract  $CONTRACT_ID"
 say ""
 
 # --- build ---
-if [ ! -f "$WASM" ]; then
+# Always rebuild. A redeploy is almost always *because* the contract changed, so trusting a
+# wasm that happens to be sitting there is how you deploy last week's code and then spend an
+# hour wondering why the code hash does not match.
+if [ "${UAL_SKIP_BUILD:-0}" != "1" ]; then
   say "building contract"
   cargo near build non-reproducible-wasm --manifest-path contracts/ual/Cargo.toml
 fi

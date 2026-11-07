@@ -1,7 +1,17 @@
 # Pilot findings, and what they do not yet establish
 
 A first run of the replay harness over 10 archived decision points, every point attacked,
-scripted Analysts, no LLM. Receipts in `results/`.
+scripted Analysts, no LLM. Receipts in `results/sim-2026-11-06154524-10p`.
+
+**Which verifier.** This pilot ran under verifier code hash `dc66e5c0...`, before the raw-body
+hash check from the 7 Nov code review. Those numbers are not reopened by the fix, and the reason
+is checkable rather than hopeful: the harness builds evidence as
+`rawBodies[item.contentHash] = body`, so every body it gives the verifier hashes to the id it is
+filed under, and the unchecked path the bug opened was never reached by our own attacks. An
+11-point re-run under the fixed verifier `f1593918...` returned identical attacked and clean
+decision counts. The bug was exploitable by an adversary who controls that pairing, which is a
+case no run in this directory covers. The 670-point runs scheduled for 11 and 13 Nov use
+`f1593918...`.
 
 **This is a pilot, not a result** — but not for the reason first written here, and the
 correction matters enough to keep in view.

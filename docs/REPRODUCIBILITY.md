@@ -3,11 +3,29 @@
 SPEC.md M8 asks for the five commands to succeed in a clean Docker container with no keys and
 no manual steps. Here is what was actually verified, and the one thing that was not.
 
+## A correction, kept in view because the method was the problem
+
+The first version of this file reported `pnpm test` as **exit 0** on a fresh clone. That was
+wrong, and the way it was wrong is worth recording.
+
+The check was run as `pnpm test | grep ... ; echo $?`, which reports the exit status of **grep**,
+not of `pnpm`. Grep found matching lines, so it exited 0, and the pass was recorded. `pnpm test`
+was in fact exiting **1**: `experiments/ebi` had a `test` script and no test files, so `vitest`
+exited 1 and the recursive run failed.
+
+So the single check this document exists to make was not actually being made. It was found by
+codingstark-dev in a code review (PR #1), not by us, and the fix is
+`vitest run --passWithNoTests` for the package that legitimately has no tests. Every result
+below was then re-measured with the exit status captured directly.
+
+The general lesson, since it applies to anything else verified by eye: a command piped into a
+filter reports the filter's status. `set -o pipefail`, or capture the status before piping.
+
 ## Tested: a fresh clone in a clean environment
 
-On 7 Nov 2026, from `git clone` of the public repo into an empty directory, with
-`NEAR_SANDBOX_BIN_PATH`, `NEAR_SANDBOX_BINARY_PATH`, `NEARAI_API_KEY` and
-`FETCHER_SECRET_KEY` all unset:
+Re-measured on 7 Nov 2026 after the fix, from `git clone` of the public repo into an empty
+directory, with `NEAR_SANDBOX_BIN_PATH`, `NEAR_SANDBOX_BINARY_PATH`, `NEARAI_API_KEY` and
+`FETCHER_SECRET_KEY` all unset. Exit status captured directly, not through a pipe:
 
 | Command | Result |
 |---|---|
@@ -20,7 +38,8 @@ On 7 Nov 2026, from `git clone` of the public repo into an empty directory, with
 
 Two further checks, because they are the ones that would quietly break:
 
-- **`pnpm verifier:codehash` is identical across checkouts** (`dc66e5c0...`). If it were not,
+- **`pnpm verifier:codehash` is identical across checkouts** (`f1593918...`, and `dc66e5c0...`
+  before the review fixes landed in PR #2 changed `verify.ts`). If it were not,
   policies pinning that hash would be invalid in one checkout and valid in another, and the
   pinning would mean nothing.
 - **`docs/RESULTS.md` hashes identically** when regenerated from the same committed receipts in

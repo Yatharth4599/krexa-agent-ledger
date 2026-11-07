@@ -148,6 +148,45 @@ very first call was refused with `NotEnoughAllowance`: 300 TGas reserves about 1
 - **What to do**: `./scripts/archive-start.sh` if the recorder died. Gaps already recorded stay
   recorded; they are part of the data.
 
+## Found in review, not by us
+
+Two entries, because both were claims this repo made that were not true. Reported by
+codingstark-dev on 7 Nov 2026 (PR #2).
+
+### The verifier trusted a raw price body it never hashed
+
+**The most serious bug in the build so far.**
+
+- **Symptom**: none. Everything looked right, and the tests passed, because every test supplied
+  honest bodies.
+- **Cause**: `verify()` took `rawBodies` keyed by `contentHash` and used them for price stance
+  and indicator recompute without checking `sha256(body) === contentHash`. The ed25519 signature
+  covers the item, which includes the `contentHash`, so the signature check passed; nothing
+  checked that the body handed in was the body that was hashed.
+- **What it allowed**: pair a genuinely signed item with a fabricated price body and the verifier
+  manufactures a `SUPPORT` stance and validates a fabricated indicator. An exploit run before
+  accepting the fix: a swapped body turned `NEUTRAL` into `SUPPORT`, lifted `k` from 0 to 1, and
+  made a fabricated +4492 bps momentum claim pass where the honest body rejected it.
+- **Why it mattered beyond the code**: the README, `skill/SKILL.md`, `docs/THREAT_MODEL.md` and
+  every generated `docs/RESULTS.md` claimed indicator recompute was "checked by arithmetic, so
+  not forgeable". It was forgeable. The gate's one genuinely checkable defence was not checked.
+- **Fix**: a raw body is accepted only if it hashes to the id it is filed under. Five lines.
+- **Lesson**: "the signature verifies" is not the same as "this is the data that was signed".
+
+### Our own reproducibility check was measuring the wrong thing
+
+- **Symptom**: `docs/REPRODUCIBILITY.md` reported `pnpm test` as exit 0 on a fresh clone. It was
+  exiting 1.
+- **Cause, in the verification rather than the code**: the check was run as
+  `pnpm test | grep ... ; echo $?`, which reports **grep's** status. Grep matched lines and
+  exited 0.
+- **The underlying code bug**: `experiments/ebi` had a `test` script and no test files, so
+  `vitest` exited 1 and the recursive run failed. Fixed with `--passWithNoTests` for that one
+  package.
+- **Lesson**: a command piped into a filter reports the filter's status. Use `set -o pipefail`,
+  or capture the status before piping. This is the check the whole document exists to make, and
+  it was not being made.
+
 ## Build and tooling
 
 ### The sandbox refuses the contract wasm
@@ -183,3 +222,10 @@ very first call was refused with `NotEnoughAllowance`: 300 TGas reserves about 1
   alter it.
 - **What to do**: `pnpm verifier:codehash`, commit a new policy with the new hash, and treat
   results from before the change as belonging to the old verifier.
+- **Hit for real**, twice. Once when the review fixes changed `verify.ts`, which left the
+  deployed testnet policy pinning a verifier that no longer existed in the repo: any new
+  `submit_evidence` on that desk would have failed `E13_BAD_HASH` until the redeploy. And once
+  within an hour of fixing that, by adding a **comment** to `verify.ts`. The hash is taken over
+  raw file bytes, so prose costs exactly as much as logic: a one-paragraph note would have
+  invalidated the policy that had just been committed on chain. The note went in the README
+  instead. `codehash.ts` excludes itself for this reason; the behavioural files cannot.

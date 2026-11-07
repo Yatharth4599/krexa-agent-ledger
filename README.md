@@ -7,7 +7,7 @@ cites signed, fresh evidence from independent sources, and sizes the trade by ho
 independent sources agree. Every action, **including every refusal**, is recorded in a
 hash-chained ledger anyone can recompute in a browser without trusting us.
 
-Built for NEAR HACKATHON (1 to 14 Nov 2026). Tracks: `swarms` (primary),
+Built for NEAR HACKATHON (window 2026-10-19 to 2026-11-14). Tracks: `swarms` (primary),
 `defi` (secondary). Unaudited. Testnet only. Paper only.
 
 ## The problem
@@ -61,7 +61,7 @@ pnpm web                # http://localhost:3000
 | `pnpm test` | 411 tests pass. The sandbox ones start a real NEAR node. |
 | `pnpm demo` | A fake headline arrives. `plain` trades on it; `ebi` refuses with `R_UNCORROBORATED`. A second independent source arrives and the trade is approved at **half** size. A fabricated RSI of 25.00 is dropped against a recomputed 100.00. One changed byte breaks the chain at a named sequence number. |
 | `pnpm attack-demo` | 11 attacking attempts, all blocked: 8 by the NEAR protocol before any contract code runs (plus a check that the attacker's balance did not change), 3 by the policy and recorded as receipts. |
-| `pnpm web` then Explorer, Load from chain | 14 receipts from `ual.krexa-ual.testnet`, every hash recomputed **in your browser**, anchored to the desk's genesis. Press Tamper and watch it break at the right seq. |
+| `pnpm web` then Explorer, Load from chain | 32 receipts from `ual.krexa-ual.testnet`, every hash recomputed **in your browser**, anchored to the desk's genesis. Press Tamper and watch it break at the right seq. |
 | `pnpm mcp` | The ledger over MCP stdio. Ask for `withdraw` and it explains that no such tool exists by design. |
 | `pnpm ual replay ebi 6` | Recomputes the prompt, snapshot, tool-call and output hashes behind one decision, then says plainly what replay does not prove. |
 | `pnpm archive:verify` | Rehashes every archived market snapshot against its recorded hash. Needs `data/archive/raw/`, which is gitignored: on a fresh clone it reports every body as missing and exits 1. |
@@ -70,21 +70,33 @@ pnpm web                # http://localhost:3000
 
 Contract: [`ual.krexa-ual.testnet`](https://testnet.nearblocks.io/address/ual.krexa-ual.testnet)
 
-The testnet deployment predates the exit, fill and evidence-reuse checks in
-[docs/RECEIPTS.md](docs/RECEIPTS.md) until it is redeployed. The sandbox tests run the current code.
+Running the current code, including the exit, fill and evidence-reuse checks in
+[docs/RECEIPTS.md](docs/RECEIPTS.md).
 
-Desk `ebi` holds a real 14 receipt chain written by `pnpm testnet:walkthrough`:
+Desk `ebi` holds a real 32 receipt chain written by `pnpm testnet:walkthrough`. Seq 1 to 14 are
+the first walkthrough, under the pre-review contract and verifier. Seq 15 to 18 are a second
+attempt that died partway on a dropped RPC call. Both are still there, because deleting receipts
+to tidy a story is the one thing a ledger must not do, and a half-written chain is a more
+honest advertisement for optimistic concurrency than a clean one. The current walkthrough, on
+the redeployed contract, is seq 19 to 32:
 
 | seq | kind | verdict | what happened |
 |---|---|---|---|
-| 5 | EVIDENCE | NA | one source, `k=1`, size multiplier **0 bps**, `attested: false` |
-| 6 | INTENT | **REJECTED** | `R_UNCORROBORATED`, `PAPER_ONLY_UNCORROBORATED` |
-| 7 | EVIDENCE | NA | a second independent group, `k=2`, **5000 bps** |
-| 8 | INTENT | APPROVED | $500 requested |
-| 9 | FILL | NA | **$250** filled: the gate halved it |
-| 10 | INTENT | **REJECTED** | `R_MAX_POSITION` on a $5,000 attempt |
-| 12 | INTENT | **REJECTED** | `R_KILL_SWITCH` |
-| 13 | INTENT | APPROVED | a close, approved while the brake was engaged |
+| 19 | POLICY | NA | policy `59f5db11...`, pinning verifier `f1593918...` |
+| 23 | EVIDENCE | NA | one source, `k=1`, size multiplier **0 bps**, `attested: false` |
+| 24 | INTENT | **REJECTED** | `R_UNCORROBORATED`, `PAPER_ONLY_UNCORROBORATED` |
+| 25 | EVIDENCE | NA | a second independent group, `k=2`, **5000 bps** |
+| 26 | INTENT | APPROVED | $500 requested |
+| 27 | FILL | NA | **$250** filled: the gate halved it |
+| 28 | INTENT | **REJECTED** | `R_EVIDENCE_USED`, `R_MAX_POSITION` on a $5,000 attempt |
+| 29 | CONTROL | NA | kill switch engaged |
+| 30 | INTENT | **REJECTED** | `R_KILL_SWITCH`, `R_EVIDENCE_USED` |
+| 31 | INTENT | APPROVED | a $250 close, approved while the brake was engaged |
+| 32 | CONTROL | NA | kill switch released |
+
+Seq 28 and 30 carry `R_EVIDENCE_USED` because the bundle at seq 25 was already spent by the
+approved open at seq 26. That check came out of the code review (see Contributors below) and
+this is it refusing on a public chain, not in a test.
 
 Trading calls are signed by `trader-ebi.krexa-ual.testnet`, a separate account.
 
@@ -111,6 +123,11 @@ Trading calls are signed by `trader-ebi.krexa-ual.testnet`, a separate account.
 registered fetcher key; that it was fetched inside the freshness window; which independence
 group the policy assigns its source to; and any claimed RSI, 24h momentum or funding figure,
 recomputed from the cited raw prices and **dropped** if it does not match.
+
+That last one holds only because a raw price body is accepted only when it hashes to the id it
+is filed under, binding it to the hash the fetcher signed. Without that check the recompute runs
+on whatever bytes the caller passed in and proves nothing. It was missing until the code review
+caught it, so the precondition is stated here rather than left implicit.
 
 **Taken on the Analyst's word:** whether a *news* item supports or contradicts the thesis.
 
@@ -148,8 +165,18 @@ mitigation**, in those words.
 
 Generated by `pnpm ebi:report` from receipts: [docs/RESULTS.md](docs/RESULTS.md). It regenerates
 byte-identically and carries the data snapshot hash. It always reports the **latest** run
-(today `sim-2026-11-06154524-11p`: 11 points, 2 of them attacked, no `debate` desk), so its
+(today `sim-2026-11-07110005-11p`: 11 points, 2 of them attacked, no `debate` desk), so its
 numbers differ from the pilot below.
+
+**Which verifier produced which numbers.** The pilot below ran under verifier
+`dc66e5c0...`, before the raw-body fix from the code review landed. It was re-run under
+`f1593918...` on a fresh 11-point window and the attacked and clean decision counts came out
+identical. That is the expected result rather than a lucky one: the harness builds its evidence
+with `rawBodies[item.contentHash] = body`, so every body it hands the verifier hashes to the id
+it is filed under, and the unchecked path the bug opened was never taken by our own attacks. The
+bug mattered against a real adversary who controls the pairing, which is the case the fix closes
+and the case no run here exercised. The scheduled 670-point runs on 11 and 13 Nov use
+`f1593918...`.
 
 The pilot (run `sim-2026-11-06154524-10p`, written up in
 [experiments/ebi/FINDINGS.md](experiments/ebi/FINDINGS.md)), over 10 archived decision points with scripted Analysts: `plain` opened in the
@@ -219,6 +246,36 @@ work **contradicted our own plan**: finding (v) says hierarchical aggregation wo
 debate does not, the opposite of what SPEC.md 2A.6 H2 predicted, so H2 was restated and the
 cut-line reordered. Both papers share the same two authors, so they are not independent
 confirmations of each other.
+
+## Contributors
+
+| | |
+|---|---|
+| Yatharth Kher ([@Yatharth4599](https://github.com/Yatharth4599)) | design and implementation |
+| [@codingstark-dev](https://github.com/codingstark-dev) | code review and the fixes in [PR #2](https://github.com/Yatharth4599/krexa-agent-ledger/pull/2) |
+
+Team size on the submission is recorded as `2 - 4` to reflect this
+([docs/SUBMISSION.md](docs/SUBMISSION.md)).
+
+The review found two real bugs that invalidated claims this README was making, which is worth
+stating rather than quietly absorbing:
+
+1. **The verifier trusted unverified raw price data.** `verify()` accepted a `rawBodies` map
+   keyed by `contentHash` without checking that the body actually hashed to that id. A
+   genuinely signed evidence item could therefore be paired with a **fabricated** price body,
+   and the verifier would recompute a stance from the fake prices and validate a fabricated
+   indicator claim. Confirmed with an exploit before the fix was accepted: swapping the body
+   turned a `NEUTRAL` stance into `SUPPORT` and made a fabricated +4492 bps momentum claim pass.
+   The claim that indicator recompute is "checked by arithmetic, so not forgeable" was false
+   until this was fixed.
+2. **`pnpm test` exited 1 on a fresh clone**, because `experiments/ebi` had a `test` script and
+   no test files. Our own reproducibility check had missed it by capturing `grep`'s exit status
+   instead of `pnpm`'s, so [docs/REPRODUCIBILITY.md](docs/REPRODUCIBILITY.md) was reporting a
+   pass that never happened. That document now leads with the correction.
+
+Also fixed: an exit with no open position could record arbitrary notional, one evidence bundle
+could back unlimited opens, caller-supplied `equity_usd` could be inflated past the last mark to
+dodge the daily loss limit, and the web server crashed on a malformed URL escape.
 
 ## Pre-existing code
 

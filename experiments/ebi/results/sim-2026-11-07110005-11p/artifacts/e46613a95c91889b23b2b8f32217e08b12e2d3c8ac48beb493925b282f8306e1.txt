@@ -1,0 +1,20 @@
+agent: scripted/hier-3@1
+news specialist prompt:
+agent: scripted/cue-weighted@1
+asset: BTC
+config: momentumThresholdBps=100 requiredCues=1 baseNotionalUsd=500000000
+prices: 
+news:
+  [synthetic-wire-a.example] Reuters reports a major asset manager has confirmed a spot BTC allocation
+technicals specialist prompt:
+agent: scripted/cue-weighted@1
+asset: BTC
+config: momentumThresholdBps=100 requiredCues=1 baseNotionalUsd=500000000
+prices: binance-public=75758.01000000@-14bps coinbase-public=75662.97@-32bps hyperliquid=75739.5@-16bps kraken-public=75667.10000@-10bps
+news:
+funding specialist prompt:
+agent: scripted/cue-weighted@1
+asset: BTC
+config: momentumThresholdBps=300 requiredCues=1 baseNotionalUsd=500000000
+prices: binance-public=75758.01000000@-14bps coinbase-public=75662.97@-32bps hyperliquid=75739.5@-16bps kraken-public=75667.10000@-10bps
+news:

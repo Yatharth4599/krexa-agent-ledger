@@ -46,20 +46,56 @@ if (!CONTRACT.endsWith(".testnet") || !OWNER.endsWith(".testnet")) {
 const tmp = mkdtempSync(join(tmpdir(), "ual-testnet-"));
 let step = 0;
 
-function near(args: string[], label: string): string {
+/**
+ * Errors worth retrying: the public testnet RPC drops calls, rate-limits, and occasionally
+ * times out mid-transaction. A contract refusal is **not** in this list, because a refusal is
+ * the answer and retrying it would turn a recorded rejection into a silent loop.
+ *
+ * Hit for real: one `record_mark` failed here and then succeeded by hand, unchanged, which cost
+ * a half-written chain and a redeploy's worth of receipts.
+ */
+const RETRYABLE = /timed out|timeout|connection|rate.?limit|429|50[023]|temporarily|dns|socket|unreachable/i;
+
+function sleepSync(ms: number): void {
+  // No await: `near()` is called from straight-line code and the ordering matters, since each
+  // step's prev_hash comes from the step before it.
+  const until = Date.now() + ms;
+  while (Date.now() < until) {
+    try {
+      execFileSync("sleep", ["0.25"], { stdio: "ignore" });
+    } catch {
+      break;
+    }
+  }
+}
+
+function near(args: string[], label: string, attempts = 4): string {
   step += 1;
   console.log(`\n[${step}] ${label}`);
   console.log(`    near ${args.join(" ")}`);
-  try {
-    const out = execFileSync("near", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-    const event = out.split("\n").find((l) => l.includes("EVENT_JSON"));
-    if (event) console.log(`    ${event.trim().slice(0, 160)}`);
-    return out;
-  } catch (e) {
-    const err = e as { stdout?: string; stderr?: string };
-    console.error(`    FAILED: ${(err.stderr ?? err.stdout ?? String(e)).slice(0, 400)}`);
-    throw e;
+  let last: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const out = execFileSync("near", args, {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      const event = out.split("\n").find((l) => l.includes("EVENT_JSON"));
+      if (event) console.log(`    ${event.trim().slice(0, 160)}`);
+      return out;
+    } catch (e) {
+      last = e;
+      const err = e as { stdout?: string; stderr?: string };
+      const text = `${err.stderr ?? ""}\n${err.stdout ?? ""}` || String(e);
+      const retryable = RETRYABLE.test(text) && attempt < attempts;
+      console.error(`    FAILED (attempt ${attempt}/${attempts}): ${text.slice(0, 400)}`);
+      if (!retryable) break;
+      const wait = 2_000 * 2 ** (attempt - 1);
+      console.error(`    looks transient, retrying in ${wait / 1000}s`);
+      sleepSync(wait);
+    }
   }
+  throw last;
 }
 
 function call(
@@ -216,11 +252,22 @@ async function main(): Promise<void> {
   };
 
   // --- an equity mark, so opens are not refused for want of one ---
-  call(
-    "record_mark",
-    { desk_id: DESK, equity_usd: "10000000000", prev_hash: head().hash, decisions_root: null },
-    { signAs: TRADER },
-  );
+  //
+  // Marks are rate limited to one per desk per 5 minutes (E14_MARK_TOO_SOON). On a re-run
+  // inside that window the refusal means the desk *already* has a fresh mark, which is the
+  // thing this step exists to establish, so carry on. Any other failure is real.
+  try {
+    call(
+      "record_mark",
+      { desk_id: DESK, equity_usd: "10000000000", prev_hash: head().hash, decisions_root: null },
+      { signAs: TRADER },
+    );
+  } catch (e) {
+    const err = e as { stdout?: string; stderr?: string };
+    const text = `${err.stderr ?? ""}${err.stdout ?? ""}`;
+    if (!text.includes("E14_MARK_TOO_SOON")) throw e;
+    console.log("    (a mark from the last 5 minutes is still fresh, continuing)");
+  }
 
   const nowNs = () => (BigInt(Date.now()) * 1_000_000n).toString();
   const sign = (content: string, source: string, kind: "NEWS" | "PRICE", group: string): SignedEvidenceItem =>
