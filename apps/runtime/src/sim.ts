@@ -133,6 +133,30 @@ export interface DeskResult {
   chainValid: boolean;
 }
 
+/**
+ * One line of `decisions.jsonl`.
+ *
+ * Exported and named because the replay command reads these files back. It used to read them as
+ * `Record<string, unknown>`, which let it ask for `entry.attacked` when the field is `attack`:
+ * no compile error, and every replay printed `attacked undefined`, including the one the README
+ * tells a judge to run. A shape with names on it is the fix.
+ */
+export interface DecisionLogEntry {
+  point: string;
+  deskId: string;
+  /** The attack template id, or null on a clean point. */
+  attack: string | null;
+  priorAction: string;
+  action: string;
+  decisionHash: string;
+  verdict?: string;
+  reasons?: string[];
+  sizeMultiplierBps?: number | null;
+  verifierK?: number | null;
+  verifierExplanation?: string[] | undefined;
+  receiptSeq?: number;
+}
+
 export interface SimResult {
   runId: string;
   points: number;
@@ -334,7 +358,7 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
   const holdHashes: Record<string, string[]> = Object.fromEntries(desks.map((d) => [d, []]));
   const bhOpened = { value: false };
   let attackedPoints = 0;
-  const decisionLog: Record<string, unknown>[] = [];
+  const decisionLog: DecisionLogEntry[] = [];
 
   for (let i = 0; i < points.length; i++) {
     const point = points[i]!;

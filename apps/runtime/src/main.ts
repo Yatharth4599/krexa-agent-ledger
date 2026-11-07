@@ -11,7 +11,7 @@ import { join } from "node:path";
 import type { Receipt } from "@krexa-ual/sdk";
 
 import { replayDecision, type DecisionRecord } from "./decision.js";
-import { runSim, type SimResult } from "./sim.js";
+import { runSim, type DecisionLogEntry, type SimResult } from "./sim.js";
 
 const REPO = join(import.meta.dirname, "..", "..", "..");
 const ARCHIVE = join(REPO, "data", "archive");
@@ -210,15 +210,22 @@ function replay(): void {
     ? readFileSync(join(dir, "decisions.jsonl"), "utf8")
         .split("\n")
         .filter((l) => l.trim())
-        .map((l) => JSON.parse(l) as Record<string, unknown>)
+        .map((l) => JSON.parse(l) as DecisionLogEntry)
     : [];
   const entry = decisions.find((d) => d.decisionHash === receipt.decisionHash);
   console.log("");
   console.log(`decisionHash ${receipt.decisionHash}`);
   if (entry) {
     console.log(`point        ${String(entry.point)}`);
-    console.log(`attacked     ${String(entry.attacked)}`);
+    // The field is `attack`, holding the template id or null. Reading `entry.attacked` here
+    // printed "undefined" on every replay, including the one the README tells a judge to run.
+    console.log(
+      `attacked     ${entry.attack ? `yes, SYNTHETIC ATTACK ${String(entry.attack)}` : "no"}`,
+    );
     console.log(`action       ${String(entry.action)}`);
+    if (entry.priorAction !== undefined && entry.priorAction !== null) {
+      console.log(`prior action ${String(entry.priorAction)}`);
+    }
     if (entry.verifierK !== undefined && entry.verifierK !== null) {
       console.log(`verifier k   ${String(entry.verifierK)}`);
     }
