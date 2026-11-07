@@ -99,7 +99,7 @@ function renderChain() {
   } else {
     status.className = "status broken";
     status.innerHTML =
-      `<strong>broken at seq ${result.brokenAt}</strong><br>` +
+      `<strong>broken at seq ${esc(result.brokenAt)}</strong><br>` +
       `<span class="hashes">${esc(result.reason ?? "")}</span>`;
   }
 
@@ -112,7 +112,7 @@ function renderChain() {
       const ok = recomputed === r.hash;
       const ev = r.evidence;
       const bits = [];
-      bits.push(`<span class="seq">#${r.seq}</span>`);
+      bits.push(`<span class="seq">#${esc(r.seq)}</span>`);
       bits.push(`<span class="kind">${esc(r.kind)}</span>`);
       bits.push(`<span class="verdict-${esc(r.verdict)}">${esc(r.verdict)}</span>`);
       bits.push(`<span class="badge ${r.mode === "paper" ? "paper" : ""}">${esc(r.mode)}</span>`);
@@ -130,14 +130,14 @@ function renderChain() {
           `<div class="hashes">intent ${esc(r.intent.side)} ${esc(r.intent.asset)} ` +
             `${esc(r.intent.notionalUsd)} micro-USD on ${esc(r.intent.venue)}` +
             (r.sizeMultiplierBps !== null && r.sizeMultiplierBps !== undefined
-              ? ` &middot; size multiplier ${r.sizeMultiplierBps} bps`
+              ? ` &middot; size multiplier ${esc(r.sizeMultiplierBps)} bps`
               : "") +
             `</div>`,
         );
       }
       if (ev) {
         lines.push(
-          `<div class="hashes">k = ${ev.k} &middot; ${ev.items.length} item(s) &middot; ` +
+          `<div class="hashes">k = ${esc(ev.k)} &middot; ${ev.items.length} item(s) &middot; ` +
             `groups ${esc(ev.items.map((i) => i.sourceGroup).join(", "))}` +
             (ev.anyBadSig ? ' &middot; <span class="bad">bad signature present</span>' : "") +
             (ev.anyStale ? ' &middot; <span class="warn">stale item present</span>' : "") +

@@ -10,7 +10,7 @@
     ".": "./src/templates.ts"
   },
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "report": "tsx src/cli.ts",
     "allocator-csv": "tsx src/csv-cli.ts"

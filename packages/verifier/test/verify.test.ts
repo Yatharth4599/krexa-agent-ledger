@@ -347,6 +347,25 @@ describe("verify", () => {
     expect(priceVerdict.stance).toBe("SUPPORT");
   });
 
+  it("ignores a raw body that does not hash to its contentHash", () => {
+    const news = sign("BTC rallies on spot demand", "newswire-b.example", "NEWS");
+    const hl = sign(hlBody("68000", "69000"), "hyperliquid", "PRICE"); // signed: down
+    const r = verify({
+      signal: baseSignal({
+        citations: [news.item.contentHash, hl.item.contentHash],
+        declaredStance: { [news.item.contentHash]: "SUPPORT" },
+      }),
+      items: [news, hl],
+      // A fabricated "up" body filed under the genuine item's hash.
+      rawBodies: { [hl.item.contentHash]: hlBody("70000", "69000") },
+      policy: POLICY,
+      nowNs: NOW,
+    });
+    const priceVerdict = r.items.find((i) => i.source === "hyperliquid")!;
+    expect(priceVerdict.stanceSource).toBe("none");
+    expect(r.k).toBe(1);
+  });
+
   it("a price that moved the other way CONTRADICTS a long and reduces k", () => {
     const news = sign("BTC rallies", "newswire-a.example", "NEWS");
     const news2 = sign("Second outlet confirms", "newswire-b.example", "NEWS");

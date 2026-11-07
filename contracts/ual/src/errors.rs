@@ -45,6 +45,14 @@ pub const MAX_BUNDLE_ITEMS: usize = 16;
 /// only code in this contract that SPEC.md 4.4 does not list.
 pub const E21_MALFORMED_AMOUNT: &str = "E21_MALFORMED_AMOUNT";
 
+/// Addition beyond SPEC.md 4.4. A fill that the desk's state no longer permits: an open while
+/// the kill switch is engaged or past its approval window, an exit larger than the position,
+/// or a fill in a different mode from the one the intent was approved in.
+pub const E22_FILL_NOT_PERMITTED: &str = "E22_FILL_NOT_PERMITTED";
+
+/// Free-text identifiers on an intent are capped so one call cannot buy unbounded storage.
+pub const MAX_IDENT_LEN: usize = 64;
+
 // --- 4.5 Rejection reasons (REJECTED receipts, transaction succeeds) ---
 
 pub const R_KILL_SWITCH: &str = "R_KILL_SWITCH";
@@ -60,6 +68,12 @@ pub const R_EVIDENCE_STALE: &str = "R_EVIDENCE_STALE";
 pub const R_EVIDENCE_BAD_SIG: &str = "R_EVIDENCE_BAD_SIG";
 pub const R_UNCORROBORATED: &str = "R_UNCORROBORATED";
 pub const R_EVIDENCE_MISMATCH: &str = "R_EVIDENCE_MISMATCH";
+/// The EVIDENCE receipt already backed an approved open. One bundle, one trade.
+pub const R_EVIDENCE_USED: &str = "R_EVIDENCE_USED";
+/// REDUCE or CLOSE with no open position on that asset and venue.
+pub const R_NO_POSITION: &str = "R_NO_POSITION";
+/// REDUCE or CLOSE for more notional than is open. Without this an exit is an unchecked open.
+pub const R_EXIT_EXCEEDS_POSITION: &str = "R_EXIT_EXCEEDS_POSITION";
 
 /// SPEC.md 4.5 says an uncorroborated intent is "recorded as `PAPER_ONLY_UNCORROBORATED`"
 /// in paper mode. We emit `R_UNCORROBORATED` always, and append this marker as a second

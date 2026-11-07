@@ -12,7 +12,7 @@
 
 import { createReadStream, existsSync, readdirSync, statSync } from "node:fs";
 import { createServer } from "node:http";
-import { extname, join, normalize, resolve } from "node:path";
+import { extname, join, normalize, resolve, sep } from "node:path";
 
 const REPO = resolve(join(import.meta.dirname, "..", "..", ".."));
 const PUBLIC = join(import.meta.dirname, "..", "public");
@@ -38,9 +38,15 @@ const TYPES: Record<string, string> = {
  * "it only reads" is exactly the reasoning behind most directory-traversal bugs.
  */
 function safeJoin(root: string, requestPath: string): string | undefined {
-  const clean = normalize(decodeURIComponent(requestPath)).replace(/^(\.\.[/\\])+/, "");
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(requestPath);
+  } catch {
+    return undefined; // a malformed escape such as `/%` used to throw and kill the server
+  }
+  const clean = normalize(decoded).replace(/^(\.\.[/\\])+/, "");
   const full = resolve(join(root, clean));
-  if (!full.startsWith(resolve(root))) return undefined;
+  if (full !== resolve(root) && !full.startsWith(resolve(root) + sep)) return undefined;
   return full;
 }
 

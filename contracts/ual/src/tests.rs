@@ -121,6 +121,19 @@ fn setup(evidence_required: bool, max_position: &str, daily_loss: &str) -> Ual {
     c
 }
 
+/// Put an open BTC position on the desk directly, so exit tests have something to exit.
+fn seed_position(c: &mut Ual, notional: &str) {
+    let mut d = c.desks.get(DESK).cloned().unwrap();
+    d.open_positions.push(Position {
+        asset: "BTC".to_string(),
+        venue: "hyperliquid".to_string(),
+        direction: Direction::LONG,
+        notional_usd: notional.to_string(),
+        opened_by_seq: 0,
+    });
+    c.desks.insert(DESK.to_string(), d);
+}
+
 fn head_hash(c: &Ual) -> String {
     c.get_head(DESK.to_string()).unwrap()["hash"]
         .as_str()
@@ -504,6 +517,7 @@ fn slippage_above_cap_is_rejected() {
 #[test]
 fn close_is_allowed_under_daily_loss_while_open_is_not() {
     let mut c = setup(false, "1000000000", "200000000");
+    seed_position(&mut c, "500000000");
     // Mark down past the $200 daily loss limit. Equity started at $10,000.
     set_ctx(owner(), T0 + 600_000_000_000);
     let head = head_hash(&c);
@@ -597,6 +611,7 @@ fn a_monitor_cannot_submit_an_intent() {
 #[test]
 fn kill_switch_blocks_opens_and_allows_close() {
     let mut c = setup(false, "1000000000", "200000000");
+    seed_position(&mut c, "500000000");
     set_ctx(owner(), T0 + 600_000_000_000);
     c.engage_kill_switch(DESK.to_string(), "manual test".to_string());
 
@@ -1073,6 +1088,7 @@ fn evidence_for_the_wrong_asset_or_direction_is_a_mismatch() {
 #[test]
 fn an_exit_needs_no_evidence_even_on_a_gated_desk() {
     let mut c = setup(true, "1000000000", "200000000");
+    seed_position(&mut c, "500000000");
     set_ctx(trader(), T0 + 600_000_000_000);
     let head = head_hash(&c);
     let r = c.submit_intent(
@@ -1462,4 +1478,150 @@ fn there_is_no_method_that_moves_funds() {
             "agent method {m} must not move value"
         );
     }
+}
+
+// ---------------------------------------------------------------- review fixes
+
+fn submit(c: &mut Ual, side: Side, notional: &str, ev: Option<u64>) -> Value {
+    let head = head_hash(c);
+    c.submit_intent(
+        DESK.to_string(),
+        intent(side, notional),
+        head,
+        "10000000000".to_string(),
+        None,
+        None,
+        ev,
+    )
+}
+
+#[test]
+fn a_close_with_nothing_open_is_not_an_exit() {
+    let mut c = setup(true, "1000000000", "200000000");
+    set_ctx(trader(), T0 + 600_000_000_000);
+    let r = submit(&mut c, Side::CLOSE, "1000000000000", None);
+    assert_eq!(verdict_of(&r), "REJECTED");
+    assert!(reasons_of(&r).contains(&"R_NO_POSITION".to_string()));
+}
+
+#[test]
+fn a_reduce_larger_than_the_position_is_rejected() {
+    let mut c = setup(false, "1000000000", "200000000");
+    seed_position(&mut c, "500000000");
+    set_ctx(trader(), T0 + 600_000_000_000);
+    let r = submit(&mut c, Side::REDUCE, "600000000", None);
+    assert!(reasons_of(&r).contains(&"R_EXIT_EXCEEDS_POSITION".to_string()));
+    let ok = submit(&mut c, Side::REDUCE, "200000000", None);
+    assert_eq!(verdict_of(&ok), "APPROVED");
+}
+
+#[test]
+#[should_panic(expected = "E22_FILL_NOT_PERMITTED")]
+fn an_open_approved_before_the_kill_switch_cannot_fill_after_it() {
+    let mut c = setup(false, "1000000000", "200000000");
+    let seq = approve_and_get_seq(&mut c, "500000000");
+    set_ctx(monitor(), T0 + 650_000_000_000);
+    c.engage_kill_switch(DESK.to_string(), "brake".to_string());
+    set_ctx(trader(), T0 + 700_000_000_000);
+    let head = head_hash(&c);
+    c.record_fill(DESK.to_string(), seq, sim_fill("500000000"), head);
+}
+
+#[test]
+#[should_panic(expected = "E22_FILL_NOT_PERMITTED")]
+fn an_exit_fill_cannot_exceed_what_is_open_at_fill_time() {
+    let mut c = setup(false, "1000000000", "200000000");
+    seed_position(&mut c, "500000000");
+    set_ctx(trader(), T0 + 600_000_000_000);
+    let r = submit(&mut c, Side::REDUCE, "500000000", None);
+    let seq = r["seq"].as_u64().unwrap();
+    // The position shrinks before the fill lands.
+    let mut d = c.desks.get(DESK).cloned().unwrap();
+    d.open_positions[0].notional_usd = "100000000".to_string();
+    c.desks.insert(DESK.to_string(), d);
+    let head = head_hash(&c);
+    c.record_fill(DESK.to_string(), seq, sim_fill("500000000"), head);
+}
+
+#[test]
+fn one_evidence_receipt_backs_one_approved_open() {
+    let mut c = setup(true, "1000000000", "200000000");
+    set_ctx(trader(), T0 + 600_000_000_000);
+    let head = head_hash(&c);
+    let ev = c.submit_evidence(
+        DESK.to_string(),
+        bundle(
+            vec![
+                signed_item("newswire-a.example", "newswire-a", EvidenceKind::NEWS, T0 + 500_000_000_000, Stance::SUPPORT, 1),
+                signed_item("hyperliquid", "exchange-hl", EvidenceKind::PRICE, T0 + 550_000_000_000, Stance::SUPPORT, 2),
+            ],
+            Direction::LONG,
+        ),
+        head,
+    );
+    let ev_seq = ev["seq"].as_u64().unwrap();
+    let first = submit(&mut c, Side::OPEN_LONG, "500000000", Some(ev_seq));
+    assert_eq!(verdict_of(&first), "APPROVED");
+    let second = submit(&mut c, Side::OPEN_LONG, "500000000", Some(ev_seq));
+    assert_eq!(verdict_of(&second), "REJECTED");
+    assert!(reasons_of(&second).contains(&"R_EVIDENCE_USED".to_string()));
+}
+
+#[test]
+fn an_unknown_evidence_seq_is_a_recorded_refusal() {
+    let mut c = setup(true, "1000000000", "200000000");
+    set_ctx(trader(), T0 + 600_000_000_000);
+    let r = submit(&mut c, Side::OPEN_LONG, "500000000", Some(999));
+    assert_eq!(verdict_of(&r), "REJECTED");
+    assert!(reasons_of(&r).contains(&"R_NO_EVIDENCE".to_string()));
+}
+
+#[test]
+fn claimed_equity_above_the_last_mark_does_not_count() {
+    let mut c = setup(false, "1000000000", "200000000");
+    // Mark $9,700 against a $10,000 start: $300 down, past the $200 limit.
+    set_ctx(owner(), T0 + 600_000_000_000);
+    let head = head_hash(&c);
+    c.record_mark(DESK.to_string(), "9700000000".to_string(), head, None);
+    set_ctx(trader(), T0 + 700_000_000_000);
+    // The caller claims $10,000, which would read as flat.
+    let r = submit(&mut c, Side::OPEN_LONG, "500000000", None);
+    assert!(reasons_of(&r).contains(&"R_DAILY_LOSS".to_string()));
+}
+
+#[test]
+#[should_panic(expected = "E02_NOT_AGENT")]
+fn an_analyst_cannot_record_a_mark() {
+    let mut c = setup(false, "1000000000", "200000000");
+    let analyst: AccountId = "analyst.test.near".parse().unwrap();
+    set_ctx(owner(), T0 + 100_000_000_000);
+    c.register_agent(DESK.to_string(), analyst.clone(), "ANALYST".to_string());
+    set_ctx(analyst, T0 + 600_000_000_000);
+    let head = head_hash(&c);
+    c.record_mark(DESK.to_string(), "1".to_string(), head, None);
+}
+
+#[test]
+#[should_panic(expected = "E18_NON_ASCII")]
+fn an_oversized_client_id_is_refused() {
+    let mut c = setup(false, "1000000000", "200000000");
+    set_ctx(trader(), T0 + 600_000_000_000);
+    let head = head_hash(&c);
+    let mut i = intent(Side::OPEN_LONG, "500000000");
+    i.client_id = "x".repeat(65);
+    c.submit_intent(DESK.to_string(), i, head, "10000000000".to_string(), None, None, None);
+}
+
+#[test]
+#[should_panic(expected = "E22_FILL_NOT_PERMITTED")]
+fn an_open_cannot_fill_after_the_daily_loss_limit_is_hit() {
+    let mut c = setup(false, "1000000000", "200000000");
+    let seq = approve_and_get_seq(&mut c, "500000000");
+    // $300 down after approval, past the $200 limit.
+    set_ctx(owner(), T0 + 900_000_000_000);
+    let head = head_hash(&c);
+    c.record_mark(DESK.to_string(), "9700000000".to_string(), head, None);
+    set_ctx(trader(), T0 + 1_000_000_000_000);
+    let head = head_hash(&c);
+    c.record_fill(DESK.to_string(), seq, sim_fill("500000000"), head);
 }

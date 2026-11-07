@@ -168,7 +168,13 @@ export interface VerifyInput {
 
 export function verify(input: VerifyInput): VerifierResult {
   const { signal, items, policy, nowNs } = input;
-  const rawBodies = input.rawBodies ?? {};
+  // A raw body counts only if it hashes to the contentHash it is filed under. Otherwise a
+  // caller could pair a genuine signed item with fabricated prices and have the verifier
+  // "recompute" whatever stance or indicator it liked.
+  const rawBodies: Record<string, string> = {};
+  for (const [id, body] of Object.entries(input.rawBodies ?? {})) {
+    if (sha256Hex(body) === id) rawBodies[id] = body;
+  }
   const explanation: string[] = [];
   // An evidenceId is a content hash, so several signed items can share one. Indexing to a
   // single item would silently discard every duplicate but one, which would make the same

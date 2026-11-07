@@ -263,6 +263,7 @@
         },
         "verdict": "REJECTED",
         "reasons": [
+          "R_EVIDENCE_USED",
           "R_MAX_POSITION"
         ],
         "fillRef": null,
@@ -278,10 +279,10 @@
         "evidence": null,
         "control": null,
         "prevHash": "e7f55b12caedff2d3dc0d013e15899347bf454fb428e558fcb18be4593b4ff7b",
-        "hash": "4282801e0fa06d660232a929e43a205af50ebd29880cab0944c4a3c6540a5246"
+        "hash": "921b83c31898dac4d93d4fdbb2b8f0489c560b6b51e2f6fc9060efc044468ff5"
       },
-      "canonicalWithoutHash": "{\"agent\":\"bob\",\"aiSigHash\":null,\"blockHeight\":\"101\",\"control\":null,\"dailyPnlUsd\":\"0\",\"decisionHash\":null,\"decisionsRoot\":null,\"deskId\":\"yk-desk\",\"drawdownBps\":0,\"equityUsd\":\"10000000000\",\"evidence\":null,\"evidenceReceiptSeq\":5,\"fillRef\":null,\"intent\":{\"asset\":\"BTC\",\"clientId\":\"trader-7f3a-000124\",\"maxSlippageBps\":30,\"notionalUsd\":\"5000000000\",\"quoteRef\":null,\"side\":\"OPEN_LONG\",\"venue\":\"hyperliquid\"},\"intentSeq\":null,\"kind\":\"INTENT\",\"mode\":\"paper\",\"policyHash\":\"54b0933b9a92d097d9f753862e7a7558e7c5af3afdd41de5b5b6a14c3c7f0c13\",\"prevHash\":\"e7f55b12caedff2d3dc0d013e15899347bf454fb428e558fcb18be4593b4ff7b\",\"reasons\":[\"R_MAX_POSITION\"],\"seq\":7,\"sizeMultiplierBps\":5000,\"ts\":\"1762423800000000000\",\"v\":1,\"verdict\":\"REJECTED\"}",
-      "hash": "4282801e0fa06d660232a929e43a205af50ebd29880cab0944c4a3c6540a5246"
+      "canonicalWithoutHash": "{\"agent\":\"bob\",\"aiSigHash\":null,\"blockHeight\":\"101\",\"control\":null,\"dailyPnlUsd\":\"0\",\"decisionHash\":null,\"decisionsRoot\":null,\"deskId\":\"yk-desk\",\"drawdownBps\":0,\"equityUsd\":\"10000000000\",\"evidence\":null,\"evidenceReceiptSeq\":5,\"fillRef\":null,\"intent\":{\"asset\":\"BTC\",\"clientId\":\"trader-7f3a-000124\",\"maxSlippageBps\":30,\"notionalUsd\":\"5000000000\",\"quoteRef\":null,\"side\":\"OPEN_LONG\",\"venue\":\"hyperliquid\"},\"intentSeq\":null,\"kind\":\"INTENT\",\"mode\":\"paper\",\"policyHash\":\"54b0933b9a92d097d9f753862e7a7558e7c5af3afdd41de5b5b6a14c3c7f0c13\",\"prevHash\":\"e7f55b12caedff2d3dc0d013e15899347bf454fb428e558fcb18be4593b4ff7b\",\"reasons\":[\"R_EVIDENCE_USED\",\"R_MAX_POSITION\"],\"seq\":7,\"sizeMultiplierBps\":5000,\"ts\":\"1762423800000000000\",\"v\":1,\"verdict\":\"REJECTED\"}",
+      "hash": "921b83c31898dac4d93d4fdbb2b8f0489c560b6b51e2f6fc9060efc044468ff5"
     }
   ]
 }
