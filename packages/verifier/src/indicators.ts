@@ -3,8 +3,9 @@
  *
  * The Analyst may claim an RSI, a 24 hour momentum or a funding rate. This module recomputes
  * each one from the cited raw PRICE evidence and reports whether the claim survives. A claim
- * that does not match is **dropped**, not flagged: a signal whose stated reason is fabricated
- * does not get to keep the citation that was supposed to justify it.
+ * that does not match is **dropped**: it never reaches the bundle or the stance count. The
+ * PRICE citations it pointed at still count on their own recomputed stance, because the
+ * prices are genuine even when the Analyst's reading of them is not.
  *
  * This is the part of the gate that addresses the fake indicator panel attack, which
  * arXiv 2610.26438 finding (iii) reports at 91% against an agent about to hold. A fabricated

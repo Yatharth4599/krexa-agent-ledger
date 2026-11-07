@@ -89,5 +89,5 @@ say "sandbox node"
 
 say ""
 say "setup done. Next:"
-say "  pnpm test    67 Rust unit + 15 sandbox integration + 318 TypeScript tests"
+say "  pnpm test    76 Rust unit + 15 sandbox integration + 319 TypeScript tests"
 say "  pnpm demo    local sandbox end to end, no keys needed"

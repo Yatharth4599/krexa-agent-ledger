@@ -421,11 +421,12 @@ impl Ual {
 
         let requested =
             parse_micro_usd_unsigned(&intent.notional_usd).unwrap_or_else(|| env::panic_str(E21_MALFORMED_AMOUNT));
-        let equity =
+        let claimed_equity =
             parse_micro_usd(&equity_usd).unwrap_or_else(|| env::panic_str(E21_MALFORMED_AMOUNT));
-        require(canonical::is_printable_ascii(&intent.client_id), E18_NON_ASCII);
-        require(canonical::is_printable_ascii(&intent.asset), E18_NON_ASCII);
-        require(canonical::is_printable_ascii(&intent.venue), E18_NON_ASCII);
+        for s in [&intent.client_id, &intent.asset, &intent.venue] {
+            require(canonical::is_printable_ascii(s), E18_NON_ASCII);
+            require(s.len() <= MAX_IDENT_LEN, E18_NON_ASCII);
+        }
         if let Some(h) = &decision_hash {
             require(is_hex64(h), E13_BAD_HASH);
         }
@@ -436,6 +437,12 @@ impl Ual {
         let now = env::block_timestamp();
         let mode = desk.mode;
         let stats = desk.stats(mode).clone();
+        // The caller's equity figure can only make the loss checks stricter. Equity above the
+        // last recorded mark would let an agent talk its way past the daily loss limit.
+        let equity = match parse_micro_usd(&stats.last_equity_usd) {
+            Some(marked) if stats.last_mark_ts != 0 => claimed_equity.min(marked),
+            _ => claimed_equity,
+        };
         let daily_pnl = daily_pnl_against(&stats, now, equity);
         let dd_bps = drawdown_bps(
             parse_micro_usd(&stats.high_water_usd).unwrap_or(0),
@@ -494,6 +501,15 @@ impl Ual {
             if effective > policy.max_position_usd() {
                 reasons.push(R_MAX_POSITION.to_string());
             }
+        } else {
+            // An exit needs no evidence, but it must be an exit: a CLOSE with nothing open, or
+            // a REDUCE larger than the position, is an unchecked open on the other side.
+            let open = open_notional(&desk, &intent.asset, &intent.venue);
+            if open == 0 {
+                reasons.push(R_NO_POSITION.to_string());
+            } else if requested > open {
+                reasons.push(R_EXIT_EXCEEDS_POSITION.to_string());
+            }
         }
 
         let verdict = if reasons.is_empty() {
@@ -501,6 +517,13 @@ impl Ual {
         } else {
             Verdict::REJECTED
         };
+        // An approved open spends its evidence. Only approval spends it, so a refusal never
+        // burns a bundle the agent could still legitimately use.
+        if verdict == Verdict::APPROVED {
+            if let Some(ev) = evidence_receipt_seq {
+                self.filled.insert(evidence_used_key(&desk_id, ev), true);
+            }
+        }
 
         let receipt = self.append_receipt(
             &mut desk,
@@ -567,6 +590,28 @@ impl Ual {
             .unwrap_or_else(|| env::panic_str(E21_MALFORMED_AMOUNT));
         require(filled_notional <= approved, E15_FILL_EXCEEDS_INTENT);
 
+        // The desk may have changed since approval. Re-check what approval checked.
+        let now = env::block_timestamp();
+        if intent.side.is_open() {
+            let policy = self.policy_of(&desk);
+            require(!desk.kill_switch, E22_FILL_NOT_PERMITTED);
+            require(
+                (desk.open_positions.len() as u64) < policy.max_open_positions(),
+                E22_FILL_NOT_PERMITTED,
+            );
+            // An approval is as old as its evidence allows, and no older.
+            if policy.evidence_required() {
+                let approved_at: u64 = intent_receipt.ts.parse().unwrap_or(0);
+                let max_age_ns = policy.evidence_max_age_sec().saturating_mul(1_000_000_000);
+                require(now.saturating_sub(approved_at) <= max_age_ns, E22_FILL_NOT_PERMITTED);
+            }
+        } else {
+            require(
+                filled_notional <= open_notional(&desk, &intent.asset, &intent.venue),
+                E22_FILL_NOT_PERMITTED,
+            );
+        }
+
         // Label rules, SPEC.md 3.4. A simulated fill on a live desk, or a settled fill on a
         // paper desk, is the exact confusion the on-chain label exists to prevent.
         match desk.mode {
@@ -580,10 +625,13 @@ impl Ual {
             ),
         }
 
+        // Checked after the labels, so a label confusion still reports E16. What is left is a
+        // correctly labelled fill against an intent approved in the other mode.
+        require(intent_receipt.mode == desk.mode, E22_FILL_NOT_PERMITTED);
+
         apply_fill_to_positions(&mut desk, &intent, filled_notional, intent_seq);
         self.filled.insert(fill_key, true);
 
-        let now = env::block_timestamp();
         let mode = desk.mode;
         let stats = desk.stats(mode).clone();
         let equity = parse_micro_usd(&stats.last_equity_usd).unwrap_or(0);
@@ -629,8 +677,13 @@ impl Ual {
         self.assert_not_paused();
         let mut desk = self.desk(&desk_id);
         let caller = env::predecessor_account_id();
+        // Owner, trading agents and the Monitor. ANALYST and DATA never touch the ledger
+        // (RULES.md 1), and a mark can reset the day basis or trip the auto kill switch.
         require(
-            desk.owner == caller || desk.active_agent(&caller).is_some(),
+            desk.owner == caller
+                || desk
+                    .active_agent(&caller)
+                    .is_some_and(|r| r.may_trade() || r == Role::MONITOR),
             E02_NOT_AGENT,
         );
         let policy = self.policy_of(&desk);
@@ -965,10 +1018,14 @@ impl Ual {
             None => return (0, None, vec![R_NO_EVIDENCE.to_string()]),
             Some(s) => s,
         };
+        // An unknown seq is a refusal like any other, so it is recorded rather than lost.
         let receipt = match self.receipts.get(&receipt_key(&desk.desk_id, seq)) {
-            None => env::panic_str(E13_BAD_HASH),
+            None => return (0, Some(seq), vec![R_NO_EVIDENCE.to_string()]),
             Some(r) => r,
         };
+        if self.filled.get(&evidence_used_key(&desk.desk_id, seq)).is_some() {
+            reasons.push(R_EVIDENCE_USED.to_string());
+        }
         let summary = match (&receipt.kind, &receipt.evidence) {
             (ReceiptKind::EVIDENCE, Some(s)) => s,
             _ => return (0, Some(seq), vec![R_NO_EVIDENCE.to_string()]),
@@ -1113,6 +1170,21 @@ fn receipt_key(desk_id: &str, seq: u64) -> String {
     // Desk ids match ^[a-z0-9][a-z0-9-]{1,47}$ so they never contain a colon, which keeps
     // this key unambiguous.
     format!("{desk_id}:{seq}")
+}
+
+/// "<deskId>:<seq>:ev" marks an EVIDENCE receipt spent. Three segments never collide with a
+/// two-segment receipt key, so this shares the `filled` map without a state migration.
+fn evidence_used_key(desk_id: &str, seq: u64) -> String {
+    format!("{desk_id}:{seq}:ev")
+}
+
+/// Open notional on one asset and venue, across both directions.
+fn open_notional(desk: &Desk, asset: &str, venue: &str) -> MicroUsd {
+    desk.open_positions
+        .iter()
+        .filter(|p| p.asset == asset && p.venue == venue)
+        .map(|p| parse_micro_usd(&p.notional_usd).unwrap_or(0))
+        .sum()
 }
 
 fn parse_role(role: &str) -> Role {
