@@ -23,17 +23,18 @@ filter reports the filter's status. `set -o pipefail`, or capture the status bef
 
 ## Tested: a fresh clone in a clean environment
 
-Re-measured on 7 Nov 2026 after the fix, from `git clone` of the public repo into an empty
-directory, with `NEAR_SANDBOX_BIN_PATH`, `NEAR_SANDBOX_BINARY_PATH`, `NEARAI_API_KEY` and
-`FETCHER_SECRET_KEY` all unset. Exit status captured directly, not through a pipe:
+Re-measured on 7 Nov 2026 after the fix, at commit `672cdc8`, from `git clone` of the public
+repo into an empty directory, with `NEAR_SANDBOX_BIN_PATH`, `NEAR_SANDBOX_BINARY_PATH`,
+`NEARAI_API_KEY`, `FETCHER_SECRET_KEY` and `UAL_CONTRACT_ID` all unset. **Each exit status
+captured directly from the command, never through a pipe:**
 
 | Command | Result |
 |---|---|
-| `./scripts/setup.sh` | passed. Created `.env` from the example, installed deps, built the contract (315.1 KB wasm), fetched `neard 2.14.0`. |
-| `pnpm test` | **exit 0.** 77 Rust unit, 12 + 3 sandbox integration, 319 TypeScript. |
+| `./scripts/setup.sh` | **exit 0.** Created `.env` from the example, installed deps, built the contract (316,817 byte wasm), fetched `neard 2.14.0`. |
+| `pnpm test` | **exit 0.** 411 tests: 77 Rust unit, 12 + 3 sandbox integration, 319 TypeScript (102 sdk, 68 scorecard, 53 verifier, 20 mcp, 76 runtime). |
 | `pnpm demo` | **exit 0.** "demo complete: every assertion held". |
 | `pnpm attack-demo` | **exit 0.** "every attacking attempt was blocked, and every policy breach was recorded". |
-| `pnpm ebi:report` | passed, and produced `docs/RESULTS.md` **byte-identical** to the one in the development checkout (`3f9f69fc...`). |
+| `pnpm ebi:report` | **exit 0**, and produced `docs/RESULTS.md` **byte-identical** to the committed one: `git status` reported the file unchanged, and its sha256 `c1d47d0a...` matches the development checkout. |
 | `pnpm web` | served `/` and `/ual.js` with HTTP 200. |
 
 Two further checks, because they are the ones that would quietly break:
@@ -48,7 +49,8 @@ Two further checks, because they are the ones that would quietly break:
 ### What the fresh clone deliberately does not have
 
 A judge gets no `.env`, no `data/archive/raw/` (gitignored, it is bulk), no `.sandbox/` and no
-`node_modules`. What they do get is `data/archive/index.jsonl` (80 lines, committed) and the
+`node_modules`. What they do get is `data/archive/index.jsonl` (225 lines at the time of this
+measurement, and growing while the recorder runs) and the
 run directories under `experiments/ebi/results`, which is why `pnpm ebi:report` works
 immediately on a clone.
 
