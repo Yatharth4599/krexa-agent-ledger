@@ -79,7 +79,7 @@ additions below. The second group came from a code review on 7 Nov 2026.
 | Code | Why it is not one of E01 to E20 |
 |---|---|
 | `E21_MALFORMED_AMOUNT` | A money field that is not an exact decimal integer string has no correct interpretation, and none of E01 to E20 describes it. Overloading one would have made the ledger lie about why a call failed. |
-| `E22_FILL_NOT_PERMITTED` | A fill the desk's state no longer allows: an open after the kill switch engaged, past its evidence window, or over `maxOpenPositions`; an exit larger than what is open at fill time; or a fill in a different mode from the one the intent was approved in. |
+| `E22_FILL_NOT_PERMITTED` | A fill the desk's state no longer allows: an open after the kill switch engaged, past the daily loss limit, without a fresh mark, past its evidence window, or over `maxOpenPositions`; an exit larger than what is open at fill time; or a fill in a different mode from the one the intent was approved in. |
 | `R_NO_POSITION` | A REDUCE or CLOSE with nothing open on that asset and venue. Without it, an exit with no position is an open on the other side that skips every check. |
 | `R_EXIT_EXCEEDS_POSITION` | A REDUCE or CLOSE for more notional than is open, for the same reason. |
 | `R_EVIDENCE_USED` | An EVIDENCE receipt backs one approved open. Without it, one k=3 bundle backs unlimited full-size opens until it goes stale. |

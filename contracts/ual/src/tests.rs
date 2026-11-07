@@ -1611,3 +1611,17 @@ fn an_oversized_client_id_is_refused() {
     i.client_id = "x".repeat(65);
     c.submit_intent(DESK.to_string(), i, head, "10000000000".to_string(), None, None, None);
 }
+
+#[test]
+#[should_panic(expected = "E22_FILL_NOT_PERMITTED")]
+fn an_open_cannot_fill_after_the_daily_loss_limit_is_hit() {
+    let mut c = setup(false, "1000000000", "200000000");
+    let seq = approve_and_get_seq(&mut c, "500000000");
+    // $300 down after approval, past the $200 limit.
+    set_ctx(owner(), T0 + 900_000_000_000);
+    let head = head_hash(&c);
+    c.record_mark(DESK.to_string(), "9700000000".to_string(), head, None);
+    set_ctx(trader(), T0 + 1_000_000_000_000);
+    let head = head_hash(&c);
+    c.record_fill(DESK.to_string(), seq, sim_fill("500000000"), head);
+}

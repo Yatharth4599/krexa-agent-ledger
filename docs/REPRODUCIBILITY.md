@@ -12,7 +12,7 @@ On 7 Nov 2026, from `git clone` of the public repo into an empty directory, with
 | Command | Result |
 |---|---|
 | `./scripts/setup.sh` | passed. Created `.env` from the example, installed deps, built the contract (315.1 KB wasm), fetched `neard 2.14.0`. |
-| `pnpm test` | **exit 0.** 76 Rust unit, 12 + 3 sandbox integration, 319 TypeScript. |
+| `pnpm test` | **exit 0.** 77 Rust unit, 12 + 3 sandbox integration, 319 TypeScript. |
 | `pnpm demo` | **exit 0.** "demo complete: every assertion held". |
 | `pnpm attack-demo` | **exit 0.** "every attacking attempt was blocked, and every policy breach was recorded". |
 | `pnpm ebi:report` | passed, and produced `docs/RESULTS.md` **byte-identical** to the one in the development checkout (`3f9f69fc...`). |

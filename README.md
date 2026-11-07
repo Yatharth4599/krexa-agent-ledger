@@ -47,7 +47,7 @@ No keys, no accounts, no manual steps.
 ```bash
 git clone https://github.com/Yatharth4599/krexa-agent-ledger && cd krexa-agent-ledger
 ./scripts/setup.sh      # checks the toolchain, installs deps, builds the contract, fetches a sandbox node
-pnpm test               # 76 Rust unit + 15 sandbox integration + 319 TypeScript tests
+pnpm test               # 77 Rust unit + 15 sandbox integration + 319 TypeScript tests
 pnpm demo               # the whole evidence gate on a local sandbox; exits non-zero on any failure
 pnpm attack-demo        # a prompt-injected Trader against a real node; writes docs/attack-demo.log
 pnpm ebi:report         # regenerates docs/RESULTS.md from recorded receipts
@@ -58,7 +58,7 @@ pnpm web                # http://localhost:3000
 
 | Run this | See this |
 |---|---|
-| `pnpm test` | 410 tests pass. The sandbox ones start a real NEAR node. |
+| `pnpm test` | 411 tests pass. The sandbox ones start a real NEAR node. |
 | `pnpm demo` | A fake headline arrives. `plain` trades on it; `ebi` refuses with `R_UNCORROBORATED`. A second independent source arrives and the trade is approved at **half** size. A fabricated RSI of 25.00 is dropped against a recomputed 100.00. One changed byte breaks the chain at a named sequence number. |
 | `pnpm attack-demo` | 11 attacking attempts, all blocked: 8 by the NEAR protocol before any contract code runs (plus a check that the attacker's balance did not change), 3 by the policy and recorded as receipts. |
 | `pnpm web` then Explorer, Load from chain | 14 receipts from `ual.krexa-ual.testnet`, every hash recomputed **in your browser**, anchored to the desk's genesis. Press Tamper and watch it break at the right seq. |

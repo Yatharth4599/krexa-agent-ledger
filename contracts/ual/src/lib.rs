@@ -590,6 +590,19 @@ impl Ual {
             .unwrap_or_else(|| env::panic_str(E21_MALFORMED_AMOUNT));
         require(filled_notional <= approved, E15_FILL_EXCEEDS_INTENT);
 
+        // Label rules, SPEC.md 3.4. A simulated fill on a live desk, or a settled fill on a
+        // paper desk, is the exact confusion the on-chain label exists to prevent.
+        match desk.mode {
+            Mode::Paper => require(
+                fill.simulated && fill.kind.must_be_simulated(),
+                E16_LABEL_MISMATCH,
+            ),
+            Mode::Live => require(
+                !fill.simulated && !fill.kind.must_be_simulated(),
+                E16_LABEL_MISMATCH,
+            ),
+        }
+
         // The desk may have changed since approval. Re-check what approval checked.
         let now = env::block_timestamp();
         if intent.side.is_open() {
@@ -597,6 +610,19 @@ impl Ual {
             require(!desk.kill_switch, E22_FILL_NOT_PERMITTED);
             require(
                 (desk.open_positions.len() as u64) < policy.max_open_positions(),
+                E22_FILL_NOT_PERMITTED,
+            );
+            // The loss limit and mark freshness can change between approval and fill, and the
+            // auto kill switch only covers the loss limit when the policy turns it on.
+            let stats = desk.stats(desk.mode);
+            require(
+                stats.last_mark_ts != 0 && now.saturating_sub(stats.last_mark_ts) <= MARK_MAX_AGE_NS,
+                E22_FILL_NOT_PERMITTED,
+            );
+            let marked = parse_micro_usd(&stats.last_equity_usd).unwrap_or(0);
+            let loss_limit = policy.daily_loss_limit_usd();
+            require(
+                loss_limit == 0 || daily_pnl_against(stats, now, marked) > -loss_limit,
                 E22_FILL_NOT_PERMITTED,
             );
             // An approval is as old as its evidence allows, and no older.
@@ -610,19 +636,6 @@ impl Ual {
                 filled_notional <= open_notional(&desk, &intent.asset, &intent.venue),
                 E22_FILL_NOT_PERMITTED,
             );
-        }
-
-        // Label rules, SPEC.md 3.4. A simulated fill on a live desk, or a settled fill on a
-        // paper desk, is the exact confusion the on-chain label exists to prevent.
-        match desk.mode {
-            Mode::Paper => require(
-                fill.simulated && fill.kind.must_be_simulated(),
-                E16_LABEL_MISMATCH,
-            ),
-            Mode::Live => require(
-                !fill.simulated && !fill.kind.must_be_simulated(),
-                E16_LABEL_MISMATCH,
-            ),
         }
 
         // Checked after the labels, so a label confusion still reports E16. What is left is a
