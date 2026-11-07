@@ -12,7 +12,7 @@ On 7 Nov 2026, from `git clone` of the public repo into an empty directory, with
 | Command | Result |
 |---|---|
 | `./scripts/setup.sh` | passed. Created `.env` from the example, installed deps, built the contract (315.1 KB wasm), fetched `neard 2.14.0`. |
-| `pnpm test` | **exit 0.** 67 Rust unit, 12 + 3 sandbox integration, 242 TypeScript. |
+| `pnpm test` | **exit 0.** 67 Rust unit, 12 + 3 sandbox integration, 318 TypeScript. |
 | `pnpm demo` | **exit 0.** "demo complete: every assertion held". |
 | `pnpm attack-demo` | **exit 0.** "every attacking attempt was blocked, and every policy breach was recorded". |
 | `pnpm ebi:report` | passed, and produced `docs/RESULTS.md` **byte-identical** to the one in the development checkout (`3f9f69fc...`). |
@@ -29,7 +29,7 @@ Two further checks, because they are the ones that would quietly break:
 ### What the fresh clone deliberately does not have
 
 A judge gets no `.env`, no `data/archive/raw/` (gitignored, it is bulk), no `.sandbox/` and no
-`node_modules`. What they do get is `data/archive/index.jsonl` (75 lines, committed) and the
+`node_modules`. What they do get is `data/archive/index.jsonl` (80 lines, committed) and the
 run directories under `experiments/ebi/results`, which is why `pnpm ebi:report` works
 immediately on a clone.
 

@@ -67,6 +67,6 @@ than R_MAX_POSITION. Exits never need evidence.
 
 Unaudited, testnet only. Every receipt says attested: false. Paper equity is operator-reported.
 Hashes prove commitment, not correctness, and this is not zkML. The model id on a decision is
-self-reported. About eight days of data cannot show trading skill, so every skill verdict reads
+self-reported. A few hours of archived data cannot show trading skill, so every skill verdict reads
 CANT_TELL_YET. No return is claimed for any desk or for Krexa. This builds on existing work and
 is not claimed as a first.

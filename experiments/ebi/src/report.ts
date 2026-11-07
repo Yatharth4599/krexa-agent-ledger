@@ -130,7 +130,7 @@ export function renderResults(
     L.push("");
   }
   L.push(
-    "About 8 days of trading data cannot show trading skill. The skill verdict for every desk " +
+    "The window above is far too short to show trading skill. The skill verdict for every desk " +
       "is `CANT_TELL_YET`, and SPEC.md 12 works through the arithmetic.",
   );
   L.push("");

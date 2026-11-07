@@ -10,7 +10,7 @@ Synthetic attacks on replayed data are not real adversaries. An attacker who pla
 
 **hier submitted no intents at all.** A desk that never trades cannot be attacked, so its zero is not evidence of a defence. Read those rows as missing data.
 
-About 8 days of trading data cannot show trading skill. The skill verdict for every desk is `CANT_TELL_YET`, and SPEC.md 12 works through the arithmetic.
+The window above is far too short to show trading skill. The skill verdict for every desk is `CANT_TELL_YET`, and SPEC.md 12 works through the arithmetic.
 
 ## What produced this
 
