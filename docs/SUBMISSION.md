@@ -20,6 +20,64 @@ Team size is `2 - 4` rather than `1` because [@codingstark-dev](https://github.c
 contributed the fixes in PR #2, including the raw-body hash check that closed a real forgery path.
 See the Contributors section of the README.
 
+## Drafts awaiting YK's yes
+
+Written so there is something to react to rather than a blank field at 20:00 on the last day.
+Neither has been sent anywhere. Both still count as "needed from YK" below until he approves or
+rewrites them.
+
+### Idea text, draft (1,180 characters, limit 2,000)
+
+> An LLM trading swarm will act on whatever text reaches it. Published work shows a single
+> fabricated headline moving a whole swarm of trading agents at once, and peer debate between
+> agents does not catch it.
+>
+> Evidence-Bound Intents makes a trading agent cite its sources. Every Analyst signal has to
+> reference evidence that was fetched, hashed and signed before the decision. A deterministic
+> verifier recomputes the indicators from the raw attested bodies and counts how many
+> independent source groups actually corroborate the claim, and that count sets the size: one
+> source buys nothing and is refused as R_UNCORROBORATED, two gets half size, three or more gets
+> full size. Every decision becomes a hash-chained receipt on NEAR, rejections included, so an
+> allocator can audit what an agent was refused as well as what it did.
+>
+> NEAR does three specific things here. Function-call access keys let each agent write to the
+> ledger while being unable to transfer funds or call any other contract, which the integration
+> tests prove by trying. The contract enforces the policy the owner committed in advance, so the
+> operator's own server is not the judge of its own track record. One sub-account per agent makes
+> each actor traceable.
+>
+> Results are paper and the honest finding is mixed: the gate fails exactly where we predicted
+> before building it, against a fake planted across several declared sources. docs/RESULTS.md
+> reports that alongside what worked.
+
+### X post, draft
+
+Cannot be posted until the video exists. Needs YK's account.
+
+> A fake headline can make a whole swarm of LLM trading agents buy at once.
+>
+> So we made them cite their sources. Each signal references hashed, signed evidence; a verifier
+> on NEAR recomputes the indicators and counts how many independent sources actually agree. One
+> source trades nothing. Two gets half size. Every refusal is a receipt on chain, not a missing
+> row.
+>
+> In the clip: the same fake headline. The ungated desk opens a long. The gated desk's intent is
+> REJECTED as R_UNCORROBORATED, and you can walk the hash chain to it.
+>
+> NEAR's part is the part I'd have had to invent otherwise: function-call keys mean the agent can
+> write its own record but cannot move funds, and the contract — not my server — enforces the
+> policy I committed before trading.
+>
+> It also blocks some real early signals. That cost is in docs/RESULTS.md, measured, next to the
+> wins.
+>
+> Built at the NEAR Hackathon. Repo: github.com/Yatharth4599/krexa-agent-ledger
+>
+> Honest question for anyone who has run agents against live markets: how many independent
+> sources would *you* require before letting an agent size up?
+>
+> @NEARProtocol #NEARHackathon
+
 ## Still needed from YK
 
 None of these can be guessed, and a wrong value here is worse than a late one.

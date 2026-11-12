@@ -139,7 +139,23 @@ very first call was refused with `NotEnoughAllowance`: 300 TGas reserves about 1
 
 ### The archive stops recording
 
-**Hit for real**: Binance and Kraken each dropped a snapshot during the first hours.
+**Hit for real, and worse than first written.** The original note here said Binance and Kraken
+"each dropped a snapshot during the first hours". Over four days the real figures were Binance
+59 failed fetches against 81 successes (42%) and Kraken 34 against 106 (24%), all
+`TypeError: fetch failed` from an Indian network, while Hyperliquid and Coinbase failed once
+each. Only 46% of rounds had all four reachable price groups.
+
+That is not just an availability nuisance, it is a measurement problem: with groups missing, the
+highest k the gate could reach is lower, so a refusal may say `R_UNCORROBORATED` because a venue
+was unreachable rather than because the evidence disagreed. The decision log and `run.json` now
+carry `groupsAvailable` and the failed-fetch counts, and `docs/RESULTS.md` reports them in their
+own section before the clean-run cost, so the two cases cannot be averaged together silently.
+
+**Also hit for real: the recorder losing two thirds of its snapshots to machine sleep.** The
+cadence was right and the Mac was not awake. See
+[SCHEDULED_RUNS.md](SCHEDULED_RUNS.md) for the measurement and the `caffeinate` fix. A process
+on a laptop is not a cron job on a server, and the archive timestamps are the only place that
+shows the difference.
 
 - **Symptom**: `pnpm archive:stats` shows a rising gap count.
 - **What it does not do**: silently substitute a stale snapshot. A failed attempt is written to
@@ -188,6 +204,31 @@ codingstark-dev on 7 Nov 2026 (PR #2).
   it was not being made.
 
 ## Build and tooling
+
+### The scheduled run never ran, and the absence was the only alarm
+
+**Hit for real**, and it cost the 11 Nov run entirely. Found on 13 Nov, two days late.
+
+The 11 Nov `launchd` job exited 126 before executing a line. Its whole log was
+`bash: ./scripts/scheduled-run.sh: Operation not permitted`. macOS TCC does not let a `launchd`
+agent reach anything under `~/Desktop` without Full Disk Access, and the repo lives there. The
+script itself was executable and ran fine from a terminal, so nothing about the script or its
+permissions was wrong.
+
+- **Symptom**: no symptom. That is the failure. `scheduled-run.sh` reports by committing and
+  pushing its results, so a run that dies at `exec` produces no commit, and no commit is
+  indistinguishable from a quiet day. The archive recorder was healthy throughout, which made
+  the project look more alive than it was.
+- **Where it was visible**: `launchctl list | grep krexa` had been printing `126` in the exit
+  status column since 11 Nov.
+- **What it did not do**: fall back, retry, or alert. One-shot `StartCalendarInterval` jobs do
+  not retry a failed exec, and the 13 Nov job had the identical plist, so it was going to fail
+  the same way on freeze day.
+- **Fix**: the plists are unloaded and the timer now runs as a detached child of a permitted
+  terminal, which inherits the grant. See [SCHEDULED_RUNS.md](SCHEDULED_RUNS.md).
+- **Lesson**: a job whose only output channel is its work product cannot report that it never
+  started. Either the scheduler has a heartbeat that is checked, or somebody looks at
+  `launchctl list`. "It is scheduled" is a claim about a plist, not about a run.
 
 ### The sandbox refuses the contract wasm
 
