@@ -23,6 +23,33 @@ Both Polymarket hosts resolve to the same address in an Indian ISP range, which 
 Polymarket's infrastructure. Every other venue resolves to its real CDN and answers in under a
 second from the same machine at the same moment.
 
+### A single probe was not enough
+
+The table above is one measurement at one instant, and it reads as though the four non-Polymarket
+venues are simply fine. Over four days of recording they were not equally fine:
+
+| source | ok | failed | failure rate |
+|---|---|---|---|
+| `hyperliquid` | 139 | 1 | under 1% |
+| `coinbase-public` | 139 | 1 | under 1% |
+| `kraken-public` | 106 | 34 | 24% |
+| `binance-public` | 81 | 59 | **42%** |
+| `polymarket-gamma` | 0 | 140 | 100%, blocked as above |
+
+All the failures are `TypeError: fetch failed` rather than an HTTP status, so they are connection
+level rather than rejections the venue chose to send. Measured to 10 Nov 2026, 139 rounds.
+
+The consequence for the gate is the part worth stating: only **46% of rounds had all four
+reachable price groups**, and 16 rounds had just two. Since the policy's size table is
+`[0, 0, 5000, 10000]`, a point with two groups cannot reach the k that unlocks full size no
+matter what the evidence says. So a refusal can be caused by the operator's network rather than
+by the evidence, and the two must not be counted as the same thing.
+
+`run.json` and the decision log now carry `groupsAvailable` plus per-source failure counts, and
+`docs/RESULTS.md` reports them in their own section ahead of the clean-run cost. The lesson
+generalises past this repo: a one-off reachability probe tells you a host answered once, not
+that you can build a measurement on it.
+
 That pattern is DNS-level blocking by the ISP, not an outage, not a rate limit, and not
 something a retry will fix. Polymarket is not accessible from India without a proxy, and
 routing around a national block is out of scope for a hackathon build.

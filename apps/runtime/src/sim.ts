@@ -155,6 +155,22 @@ export interface DecisionLogEntry {
   verifierK?: number | null;
   verifierExplanation?: string[] | undefined;
   receiptSeq?: number;
+  /**
+   * How many distinct PRICE source groups were actually reachable at this point, and which
+   * sources failed.
+   *
+   * Recorded because without it a refusal cannot be attributed. `R_UNCORROBORATED` with four
+   * groups present means the independent groups disagreed, which is the gate working. The same
+   * reason with two groups present may only mean two venues were unreachable from the
+   * operator's network, which is an artifact of where the machine sits. Measured on the 4 day
+   * archive: Binance failed 42% of fetches and Kraken 24%, and only 46% of rounds had all four
+   * groups, so this is a live confound rather than a hypothetical one.
+   *
+   * The DecisionRecord already commits to the gap list inside `dataSnapshotHash`, but a hash is
+   * not readable, so nothing downstream could report on it.
+   */
+  groupsAvailable?: number;
+  gaps?: string[];
 }
 
 export interface SimResult {
@@ -363,6 +379,10 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
   for (let i = 0; i < points.length; i++) {
     const point = points[i]!;
     const market = marketViewAt(ASSET, point, points.slice(0, i));
+    // Distinct PRICE groups that actually answered at this point. See DecisionLogEntry.
+    const groupsAvailable = new Set(
+      point.snapshots.filter((s2) => s2.kind === "PRICE").map((s2) => s2.sourceGroup),
+    ).size;
     const attack = attackAt(i, attackRate, cases);
     if (attack) attackedPoints += 1;
 
@@ -521,6 +541,8 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
           priorAction,
           action: "HOLD",
           decisionHash: built.decisionHash,
+          groupsAvailable,
+          gaps: point.gaps,
         });
         continue;
       }
@@ -621,6 +643,8 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
         verifierExplanation: verifierExplanation.length > 0 ? verifierExplanation : undefined,
         decisionHash: built.decisionHash,
         receiptSeq: receipt.seq,
+        groupsAvailable,
+        gaps: point.gaps,
       });
     }
   }
@@ -687,6 +711,23 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
         verifierCodeHash,
         firstPoint: points[0]!.iso,
         lastPoint: points[points.length - 1]!.iso,
+        // Source reachability, so a reader can see the confound without parsing the log. A
+        // point with fewer groups can be refused for want of a venue rather than for
+        // disagreement, and the two must not be read as the same thing.
+        pointsByGroupsAvailable: Object.fromEntries(
+          [...points.reduce((m, p2) => {
+            const n = new Set(
+              p2.snapshots.filter((s2) => s2.kind === "PRICE").map((s2) => s2.sourceGroup),
+            ).size;
+            return m.set(n, (m.get(n) ?? 0) + 1);
+          }, new Map<number, number>())].sort((a, b) => b[0] - a[0]),
+        ),
+        failedFetchesBySource: Object.fromEntries(
+          [...points.reduce((m, p2) => {
+            for (const g of p2.gaps) m.set(g, (m.get(g) ?? 0) + 1);
+            return m;
+          }, new Map<string, number>())].sort(),
+        ),
         attackTemplates:
           "all written by us, none from arXiv 2610.26438 (no release). See experiments/ebi/templates/SOURCES.md",
         note:

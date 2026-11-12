@@ -36,6 +36,10 @@ export interface RunMeta {
   firstPoint: string;
   lastPoint: string;
   note?: string;
+  /** Points keyed by how many PRICE groups answered. Absent on runs before 10 Nov 2026. */
+  pointsByGroupsAvailable?: Record<string, number>;
+  /** Failed fetches per source id. Absent on runs before 10 Nov 2026. */
+  failedFetchesBySource?: Record<string, number>;
 }
 
 function sha256(s: string): string {
@@ -247,6 +251,60 @@ export function renderResults(
       );
     }
     L.push("");
+  }
+
+  // ---- source reachability ----
+  //
+  // This sits immediately before the clean-run cost because it is the main thing that could
+  // make that number wrong, and a reader who takes the block rate at face value without it
+  // would be reading an artifact of the operator's network as a property of the gate.
+  const byGroups = meta.pointsByGroupsAvailable;
+  const failed = meta.failedFetchesBySource;
+  if (byGroups && Object.keys(byGroups).length > 0) {
+    L.push("## Source reachability, and why it limits what the next section can say");
+    L.push("");
+    L.push(
+      "A refusal for `R_UNCORROBORATED` means one of two different things. With every price " +
+        "group present it means the independent groups disagreed, which is the gate doing its " +
+        "job. With groups missing it may only mean a venue was unreachable from the machine " +
+        "that recorded the archive. Those are not the same finding and this run does not " +
+        "average them silently.",
+    );
+    L.push("");
+    L.push("| price groups reachable | decision points |");
+    L.push("|---|---|");
+    const keys = Object.keys(byGroups).sort((a, b) => Number(b) - Number(a));
+    for (const k of keys) L.push(`| ${k} | ${byGroups[k]} |`);
+    L.push("");
+    const total = keys.reduce((n, k) => n + (byGroups[k] ?? 0), 0);
+    const maxGroups = Number(keys[0] ?? 0);
+    const full = byGroups[String(maxGroups)] ?? 0;
+    if (total > 0 && full < total) {
+      const pct = ((full / total) * 100).toFixed(0);
+      L.push(
+        `Only ${full} of ${total} points (${pct}%) had all ${maxGroups} groups. On the rest, ` +
+          "the highest k the gate could possibly have reached was lower than the policy's " +
+          "size table allows for, so some refusals below are a property of the data rather " +
+          "than of the evidence.",
+      );
+      L.push("");
+    }
+    if (failed && Object.keys(failed).length > 0) {
+      L.push("Failed fetches by source, over the same points:");
+      L.push("");
+      L.push("| source | failed fetches |");
+      L.push("|---|---|");
+      for (const [src, n] of Object.entries(failed).sort((a, b) => b[1] - a[1])) {
+        L.push(`| \`${src}\` | ${n} |`);
+      }
+      L.push("");
+      L.push(
+        "These are recorded rather than retried away. A gap in the archive is written with " +
+          "`ok: false`, so a replay can tell a hole in the data from a quiet market. See " +
+          "docs/DATA_SOURCES.md for which sources are reachable from where.",
+      );
+      L.push("");
+    }
   }
 
   // ---- cost side ----
