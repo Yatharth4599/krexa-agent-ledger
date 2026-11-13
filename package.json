@@ -36,5 +36,10 @@
     "attack-demo": "pnpm run build:contract >/dev/null && bash scripts/with-sandbox.sh pnpm -F @krexa-ual/runtime exec tsx ../../scripts/attack-demo.ts",
     "allocator-csv": "pnpm -F @krexa-ual/experiments-ebi allocator-csv",
     "submit": "pnpm -F @krexa-ual/runtime exec tsx ../../scripts/submit.ts"
+  },
+  "pnpm": {
+    "overrides": {
+      "tar": "^7.5.21"
+    }
   }
 }
