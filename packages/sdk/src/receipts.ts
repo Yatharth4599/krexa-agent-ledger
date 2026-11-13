@@ -73,24 +73,60 @@ export interface ChainResult {
  * contents, and each `prevHash` equal to the previous receipt's `hash`.
  *
  * Pass `expectedGenesis` (from `genesisHash(contractId, deskId)`) when the list starts at
- * seq 1, so the chain is anchored. Without it a tampered run that is internally consistent
- * but rebased onto a different genesis would pass, which is the one thing a hash chain is
- * supposed to catch.
+ * seq 1: the first receipt must then be seq 1 and chain to that genesis, so a run with its
+ * first receipts dropped does not pass. Pass `expectedHead` (from the contract's `get_head`)
+ * to also pin the tail: a truncated run fails. Never throws: hostile input is `valid: false`.
  */
-export function verifyChain(receipts: Receipt[], expectedGenesis?: string): ChainResult {
-  if (receipts.length === 0) return { valid: true };
+export function verifyChain(
+  receipts: Receipt[],
+  expectedGenesis?: string,
+  expectedHead?: { seq: number; hash: string },
+): ChainResult {
+  try {
+    return verifyChainInner(receipts, expectedGenesis, expectedHead);
+  } catch (e) {
+    return { valid: false, reason: `malformed receipt: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
 
-  const first = receipts[0];
-  if (expectedGenesis !== undefined && first.seq === 1 && first.prevHash !== expectedGenesis) {
-    return {
-      valid: false,
-      brokenAt: first.seq,
-      reason: `receipt 1 chains to ${first.prevHash}, not to this desk's genesis ${expectedGenesis}`,
-    };
+function verifyChainInner(
+  receipts: Receipt[],
+  expectedGenesis?: string,
+  expectedHead?: { seq: number; hash: string },
+): ChainResult {
+  if (!Array.isArray(receipts)) return { valid: false, reason: "receipts is not a list" };
+  if (receipts.length === 0) {
+    if (expectedHead !== undefined && expectedHead.seq > 0) {
+      return { valid: false, reason: `no receipts, but the desk head is seq ${expectedHead.seq}` };
+    }
+    return { valid: true };
+  }
+  for (const r of receipts) {
+    if (r === null || typeof r !== "object" || !Number.isSafeInteger(r.seq)) {
+      return { valid: false, reason: "a receipt is null, not an object, or has no integer seq" };
+    }
+  }
+
+  const first = receipts[0]!;
+  if (expectedGenesis !== undefined) {
+    if (first.seq !== 1) {
+      return {
+        valid: false,
+        brokenAt: first.seq,
+        reason: `the run starts at receipt ${first.seq}, not 1; the first receipts are missing`,
+      };
+    }
+    if (first.prevHash !== expectedGenesis) {
+      return {
+        valid: false,
+        brokenAt: first.seq,
+        reason: `receipt 1 chains to ${first.prevHash}, not to this desk's genesis ${expectedGenesis}`,
+      };
+    }
   }
 
   for (let i = 0; i < receipts.length; i++) {
-    const r = receipts[i];
+    const r = receipts[i]!;
 
     const recomputed = receiptHash(r);
     if (recomputed !== r.hash) {
@@ -102,7 +138,7 @@ export function verifyChain(receipts: Receipt[], expectedGenesis?: string): Chai
     }
 
     if (i > 0) {
-      const prev = receipts[i - 1];
+      const prev = receipts[i - 1]!;
       if (r.seq !== prev.seq + 1) {
         return {
           valid: false,
@@ -118,6 +154,15 @@ export function verifyChain(receipts: Receipt[], expectedGenesis?: string): Chai
         };
       }
     }
+  }
+
+  const last = receipts[receipts.length - 1]!;
+  if (expectedHead !== undefined && (last.seq !== expectedHead.seq || last.hash !== expectedHead.hash)) {
+    return {
+      valid: false,
+      brokenAt: last.seq,
+      reason: `the run ends at receipt ${last.seq} (${last.hash}) but the desk head is ${expectedHead.seq} (${expectedHead.hash}); the tail is missing or forged`,
+    };
   }
 
   return { valid: true };

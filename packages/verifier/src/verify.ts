@@ -157,6 +157,11 @@ function priceStance(
 
 export interface VerifyInput {
   signal: Signal;
+  /**
+   * The fetcher keys registered on the contract (`ed25519:...`). An item signed by any other
+   * key is not counted: a valid signature from a key nobody registered proves nothing.
+   */
+  fetchers: string[];
   /** Every signed item available, keyed by nothing: looked up by contentHash. */
   items: SignedEvidenceItem[];
   /** Raw bodies by contentHash, for indicator recompute and price stance. */
@@ -166,8 +171,20 @@ export interface VerifyInput {
   nowNs: string;
 }
 
+const U64_MAX = (1n << 64n) - 1n;
+
+/** Decimal u64, no sign, no hex, no leading zeros, no whitespace. Anything else is undefined. */
+function parseU64(s: unknown): bigint | undefined {
+  if (typeof s !== "string" || !/^(0|[1-9][0-9]{0,19})$/.test(s)) return undefined;
+  const n = BigInt(s);
+  return n <= U64_MAX ? n : undefined;
+}
+
 export function verify(input: VerifyInput): VerifierResult {
-  const { signal, items, policy, nowNs } = input;
+  const { signal, policy, nowNs } = input;
+  const registered = new Set(input.fetchers);
+  // Hostile items (null, no `item`, non-string hash) cannot be indexed; drop them up front.
+  const items = input.items.filter((i) => typeof i?.item?.contentHash === "string");
   // A raw body counts only if it hashes to the contentHash it is filed under. Otherwise a
   // caller could pair a genuine signed item with fabricated prices and have the verifier
   // "recompute" whatever stance or indicator it liked.
@@ -190,8 +207,24 @@ export function verify(input: VerifyInput): VerifierResult {
   for (const list of byId.values()) {
     list.sort((a, b) => (a.item.source < b.item.source ? -1 : a.item.source > b.item.source ? 1 : 0));
   }
-  const maxAgeNs = BigInt(policy.maxAgeSec) * 1_000_000_000n;
-  const now = BigInt(nowNs);
+  // An unparseable window or clock makes everything stale rather than throwing.
+  const maxAgeSecN = Number.isSafeInteger(policy.maxAgeSec) && policy.maxAgeSec >= 0 ? policy.maxAgeSec : undefined;
+  const maxAgeNs = maxAgeSecN === undefined ? undefined : BigInt(maxAgeSecN) * 1_000_000_000n;
+  const now = parseU64(nowNs);
+
+  // The one predicate for "this item may count": signed by a registered key, fresh, and from
+  // a declared source. Used for the indicator series and for the verdicts alike.
+  const status = (item: SignedEvidenceItem) => {
+    const signatureValid = registered.has(item.fetcherKey) && verifyEvidenceItem(item);
+    const fetchedAt = parseU64(item.item.fetchedAt);
+    // A timestamp in the future is treated as stale, not extra-fresh, so a fetcher cannot buy
+    // itself a longer window by lying forward. Matches the contract.
+    const fresh =
+      fetchedAt !== undefined && now !== undefined && maxAgeNs !== undefined &&
+      fetchedAt > 0n && fetchedAt <= now && now - fetchedAt <= maxAgeNs;
+    const group = groupForSource(policy, item.item.source);
+    return { signatureValid, fetchedAt, fresh, group, eligible: signatureValid && fresh && group !== undefined };
+  };
 
   // ---- indicator claims, recomputed from cited PRICE evidence only ----
   //
@@ -200,7 +233,7 @@ export function verify(input: VerifyInput): VerifierResult {
   const citedPriceSeries: PriceSeriesPoint[] = [];
   for (const id of signal.citations) {
     for (const item of byId.get(id) ?? []) {
-      if (item.item.kind !== "PRICE") continue;
+      if (item.item.kind !== "PRICE" || !status(item).eligible) continue;
       const body = rawBodies[id];
       if (!body) continue;
       const point = extractPrice(item.item.source, body, signal.asset);
@@ -213,7 +246,11 @@ export function verify(input: VerifyInput): VerifierResult {
       });
     }
   }
-  citedPriceSeries.sort((a, b) => (BigInt(a.ts) < BigInt(b.ts) ? -1 : 1));
+  citedPriceSeries.sort((a, b) => {
+    const x = BigInt(a.ts);
+    const y = BigInt(b.ts);
+    return x < y ? -1 : x > y ? 1 : 0;
+  });
 
   const claimChecks: IndicatorCheck[] = (signal.claims ?? []).map((c) =>
     checkClaim(c, c.asset === signal.asset ? citedPriceSeries : []),
@@ -275,12 +312,7 @@ export function verify(input: VerifyInput): VerifierResult {
 
     for (let itemIndex = 0; itemIndex < matching.length; itemIndex++) {
       const item = matching[itemIndex]!;
-      const signatureValid = verifyEvidenceItem(item);
-      const fetchedAt = BigInt(item.item.fetchedAt);
-      // A timestamp in the future is treated as stale, not extra-fresh, so a fetcher cannot buy
-      // itself a longer window by lying forward. Matches the contract.
-      const fresh = fetchedAt > 0n && fetchedAt <= now && now - fetchedAt <= maxAgeNs;
-      const group = groupForSource(policy, item.item.source);
+      const { signatureValid, fresh, group } = status(item);
 
       let stance: Stance = "NEUTRAL";
       let stanceSource: ItemVerdict["stanceSource"] = "none";
@@ -313,7 +345,7 @@ export function verify(input: VerifyInput): VerifierResult {
 
       let counted = false;
       let excluded: string | undefined;
-      if (!signatureValid) excluded = "signature does not verify";
+      if (!signatureValid) excluded = "signature does not verify, or the fetcher key is not registered";
       else if (!fresh) excluded = `fetched outside the ${policy.maxAgeSec}s freshness window`;
       else if (!group) excluded = `source "${item.item.source}" is not declared in any policy group`;
       else if (stance === "NEUTRAL") excluded = "neither supports nor contradicts the thesis";

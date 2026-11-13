@@ -76,7 +76,7 @@ fi
 
 say ""
 say "js dependencies"
-pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+pnpm install --frozen-lockfile
 
 say ""
 say "contract build"
@@ -89,5 +89,5 @@ say "sandbox node"
 
 say ""
 say "setup done. Next:"
-say "  pnpm test    77 Rust unit + 15 sandbox integration + 335 TypeScript tests"
+say "  pnpm test    77 Rust unit + 15 sandbox integration + 341 TypeScript tests"
 say "  pnpm demo    local sandbox end to end, no keys needed"

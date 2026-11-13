@@ -30,6 +30,7 @@ import { dirname, join } from "node:path";
 
 import { sha256Hex } from "@krexa-ual/sdk";
 
+import { isContentHash, readCappedText } from "./net.js";
 import { activeSources, SOURCES, type Source } from "./sources.js";
 
 const REPO_ROOT = join(dirname(new URL(import.meta.url).pathname), "..", "..", "..");
@@ -75,8 +76,6 @@ async function fetchOne(source: Source, at: number): Promise<IndexLine> {
     url: source.url,
   };
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const res = await fetch(source.url, {
       method: source.method,
@@ -85,9 +84,12 @@ async function fetchOne(source: Source, at: number): Promise<IndexLine> {
           ? { "Content-Type": "application/json" }
           : { Accept: "application/json" },
       body: source.method === "POST" ? JSON.stringify(source.body) : undefined,
-      signal: controller.signal,
+      // the timeout covers reading the body too; a redirect is an error, not a hop to a host
+      // that is not in the source list
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      redirect: "error",
     });
-    const text = await res.text();
+    const text = await readCappedText(res);
     if (!res.ok) {
       return { ...base, ok: false, httpStatus: res.status, error: text.slice(0, 200) };
     }
@@ -104,8 +106,6 @@ async function fetchOne(source: Source, at: number): Promise<IndexLine> {
     };
   } catch (e) {
     return { ...base, ok: false, error: String(e).slice(0, 200) };
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -165,6 +165,12 @@ function verify(): number {
     const hash = l.contentHash!;
     if (seen.has(hash)) continue;
     seen.add(hash);
+    if (!isContentHash(hash)) {
+      // never join an index-supplied string into a path unless it is 64 hex digits
+      mismatched += 1;
+      console.log(`MISMATCH    ${JSON.stringify(hash).slice(0, 80)} is not a sha256 hex digest (${l.source} at ${l.iso})`);
+      continue;
+    }
     const path = join(RAW_DIR, `${hash}.json`);
     if (!existsSync(path)) {
       missing += 1;

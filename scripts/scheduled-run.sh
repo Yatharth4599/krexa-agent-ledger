@@ -99,7 +99,8 @@ pnpm ebi:report
 # --- commit ---
 echo ""
 echo "--- committing ---"
-git add -A
+# Only what a run writes. `git add -A` would also publish any stray key or local file.
+git add -- data/archive docs/RESULTS.md experiments/ebi/results
 if git diff --cached --quiet; then
   echo "nothing changed, not committing"
 else

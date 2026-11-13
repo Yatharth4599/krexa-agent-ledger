@@ -598,6 +598,7 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
           verifierCodeHash,
         };
         const v = verify({
+          fetchers: [fetcher.publicKey],
           signal: out.signal,
           items,
           rawBodies,
@@ -747,6 +748,10 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
         startEquityUsd: START_EQUITY,
         baseNotionalUsd: BASE_NOTIONAL,
         evidenceMaxAgeSec: SIM_MAX_AGE_SEC,
+        // Which run is "the latest" is decided from this, never from a file mtime: a clone
+        // stamps every checked-out file with the checkout time, so mtimes rank runs differently
+        // on a judge's machine than on ours. See latestRun in experiments/ebi/src/report.ts.
+        finishedAt: new Date().toISOString(),
         // Without this a reader cannot tell this run from the ones before 13 Nov 2026, whose
         // refusals were mostly the archive being older than maxAgeSec. See the file header.
         replayTimeShift:

@@ -536,6 +536,7 @@ async function run(worker: Worker): Promise<void> {
   const rawBodies = { [priceItem.item.contentHash]: HL_PRICE_SNAPSHOT };
 
   const honest = verify({
+    fetchers: [fetcher.publicKey],
     signal: honestSignal,
     items: corroborated.items,
     rawBodies,
@@ -574,6 +575,7 @@ async function run(worker: Worker): Promise<void> {
   }
 
   const fabricated = verify({
+    fetchers: [fetcher.publicKey],
     signal: {
       ...honestSignal,
       citations: [fakeItem.item.contentHash, ...seriesItems.map((i) => i.item.contentHash)],
