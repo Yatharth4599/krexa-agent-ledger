@@ -338,7 +338,11 @@ export class UalClient {
     opts?: { fromSeq?: number },
   ): Promise<{ receipts: Receipt[]; chain: ChainResult }> {
     const from = opts?.fromSeq ?? 1;
-    const { seq: headSeq } = await this.head(deskId);
+    if (!Number.isSafeInteger(from) || from < 1) {
+      throw new Error(`fromSeq must be an integer >= 1, got ${String(from)}`);
+    }
+    const head = await this.head(deskId);
+    const headSeq = head.seq;
     const receipts: Receipt[] = [];
     // get_receipts caps limit at 100, so page through rather than silently truncating.
     for (let start = from; start <= headSeq; start += 100) {
@@ -347,11 +351,55 @@ export class UalClient {
         from_seq: start,
         limit: 100,
       });
-      if (page.length === 0) break;
+      if (!Array.isArray(page) || page.length === 0) break;
       receipts.push(...page);
     }
+    // The head was read first; a desk that grew meanwhile must not make the tail mismatch.
+    if (receipts.length > headSeq - from + 1) receipts.length = Math.max(0, headSeq - from + 1);
+
+    if (from > headSeq) return { receipts, chain: { valid: true } };
+    if (receipts.length === 0 || receipts[0]?.seq !== from) {
+      return {
+        receipts,
+        chain: {
+          valid: false,
+          brokenAt: from,
+          reason: `asked for receipts from seq ${from} but the node served ${receipts[0]?.seq ?? "none"}`,
+        },
+      };
+    }
+    if (from > 1) {
+      // Without genesis the run floats; tie its first receipt to the one before it.
+      const before = await this.getReceipt(deskId, from - 1);
+      if (!before || before.seq !== from - 1 || verifyChain([before]).valid === false) {
+        return {
+          receipts,
+          chain: { valid: false, brokenAt: from, reason: `receipt ${from - 1} is missing or does not hash` },
+        };
+      }
+      if (receipts[0]!.prevHash !== before.hash) {
+        return {
+          receipts,
+          chain: {
+            valid: false,
+            brokenAt: from,
+            reason: `receipt ${from} chains to ${receipts[0]!.prevHash} but receipt ${from - 1} hashes to ${before.hash}`,
+          },
+        };
+      }
+    }
     const genesis = from === 1 ? await this.genesisHash(deskId) : undefined;
-    return { receipts, chain: verifyChain(receipts, genesis) };
+    return { receipts, chain: verifyChain(receipts, genesis, head) };
+  }
+
+  /** The policy JSON for a hash, checked: a node must not serve bytes that hash to something else. */
+  private async policyChecked(policyHash: string): Promise<string | null> {
+    const policyJson = await this.getPolicy(policyHash);
+    if (policyJson === null || policyJson === undefined) return null;
+    if (sha256Hex(policyJson) !== policyHash) {
+      throw new Error(`policy served for ${policyHash} hashes to ${sha256Hex(policyJson)}; refusing it`);
+    }
+    return policyJson;
   }
 
   // ------------------------------------------------------------ local pre-check
@@ -371,7 +419,7 @@ export class UalClient {
 
     const policyHash = desk.policyHash as string | null;
     if (!policyHash) throw new Error(`desk "${deskId}" has no committed policy (E06_NO_POLICY)`);
-    const policyJson = await this.getPolicy(policyHash);
+    const policyJson = await this.policyChecked(policyHash);
     if (!policyJson) throw new Error(`policy ${policyHash} is missing from the contract`);
     const policy = JSON.parse(policyJson) as Policy;
 
@@ -455,6 +503,9 @@ export class UalClient {
             });
           }
           const k = Number(summary.k ?? 0);
+          if (!Number.isInteger(k) || k < 0) {
+            throw new Error(`evidence receipt ${evidenceSeq} has a non-integer k: ${String(summary.k)}`);
+          }
           const minK = minKForNonZero(policy.evidence);
           if (minK !== undefined && k < minK) {
             findings.push({
@@ -488,7 +539,7 @@ export class UalClient {
     const desk = (await this.getDesk(deskId)) as Record<string, unknown> | null;
     const policyHash = desk?.policyHash as string | null;
     if (!policyHash) return undefined;
-    const policyJson = await this.getPolicy(policyHash);
+    const policyJson = await this.policyChecked(policyHash);
     if (!policyJson) return undefined;
     const policy = JSON.parse(policyJson) as Policy;
     return policy.evidence ? groupForSource(policy.evidence, source) : undefined;

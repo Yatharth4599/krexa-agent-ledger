@@ -73,6 +73,7 @@ export interface SummaryStats {
 export function summarize(xs: number[]): SummaryStats {
   const n = xs.length;
   if (n === 0) return { n: 0, mean: 0, sd: 0 };
+  if (!xs.every(Number.isFinite)) throw new Error("summarize: every value must be a finite number");
   const mean = xs.reduce((a, b) => a + b, 0) / n;
   if (n === 1) return { n, mean, sd: 0 };
   // n-1: these are samples, not the population. Using n would understate the spread and
@@ -210,7 +211,7 @@ function logGamma(z: number): number {
  * spinning up more desks raises the bar rather than giving more chances to get lucky.
  */
 export function tStarForK(k: number): number {
-  if (k < 1) throw new Error(`K must be at least 1, got ${k}`);
+  if (!Number.isFinite(k) || k < 1) throw new Error(`K must be a finite number, at least 1, got ${k}`);
   return normalQuantile(1 - 0.02275 / k);
 }
 

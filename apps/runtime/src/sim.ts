@@ -597,6 +597,7 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
           verifierCodeHash,
         };
         const v = verify({
+          fetchers: [fetcher.publicKey],
           signal: out.signal,
           items,
           rawBodies,
