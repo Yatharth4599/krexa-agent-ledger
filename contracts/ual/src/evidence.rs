@@ -104,7 +104,10 @@ pub fn evaluate_bundle(
             .unwrap_or_else(|| env::panic_str(E19_UNKNOWN_FETCHER));
         require(is_hex64(&entry.item.content_hash), E13_BAD_HASH);
         require(bounded_text(&entry.item.source, 128), E18_NON_ASCII);
-        require(bounded_text(&entry.item.source_group, MAX_IDENT_LEN), E18_NON_ASCII);
+        require(
+            bounded_text(&entry.item.source_group, MAX_IDENT_LEN),
+            E18_NON_ASCII,
+        );
         require(bounded_text(&entry.item.url, MAX_REF_LEN), E18_NON_ASCII);
         require(canonical_u64(&entry.item.fetched_at), E21_MALFORMED_AMOUNT);
 

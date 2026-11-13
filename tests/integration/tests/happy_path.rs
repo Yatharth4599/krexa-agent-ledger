@@ -352,7 +352,10 @@ async fn a_stale_prev_hash_appends_nothing_on_a_real_node() -> Result<()> {
         .transact()
         .await?;
 
-    assert!(replayed.into_result().is_err(), "stale head must be refused");
+    assert!(
+        replayed.into_result().is_err(),
+        "stale head must be refused"
+    );
     assert_eq!(
         h.head_seq().await?,
         seq_before,

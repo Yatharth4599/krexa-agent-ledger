@@ -27,7 +27,10 @@ async fn full_access_key_can_transfer_so_the_denial_below_is_about_the_key() -> 
     let before = beneficiary.view_account().await?.balance;
 
     h.trader_full
-        .transfer_near(beneficiary.id(), near_workspaces::types::NearToken::from_near(1))
+        .transfer_near(
+            beneficiary.id(),
+            near_workspaces::types::NearToken::from_near(1),
+        )
         .await?
         .into_result()?;
 
@@ -47,7 +50,10 @@ async fn function_call_key_cannot_transfer_near() -> Result<()> {
 
     let result = h
         .trader_fc
-        .transfer_near(beneficiary.id(), near_workspaces::types::NearToken::from_near(1))
+        .transfer_near(
+            beneficiary.id(),
+            near_workspaces::types::NearToken::from_near(1),
+        )
         .await;
 
     assert!(
@@ -172,9 +178,8 @@ async fn function_call_key_cannot_add_another_key_to_escalate() -> Result<()> {
 
     // The obvious escape: use the restricted key to grant yourself an unrestricted one.
     // AddKey is not a function call, so the permission does not cover it.
-    let escalated = near_workspaces::types::SecretKey::from_random(
-        near_workspaces::types::KeyType::ED25519,
-    );
+    let escalated =
+        near_workspaces::types::SecretKey::from_random(near_workspaces::types::KeyType::ED25519);
     let result = h
         .trader_fc
         .batch(h.trader_fc.id())
@@ -383,7 +388,11 @@ async fn monitor_may_engage_but_its_key_cannot_release() -> Result<()> {
         .args_json(json!({"desk_id": DESK}))
         .await?
         .json()?;
-    assert_eq!(desk["killSwitch"], json!(true), "the monitor can stop the desk");
+    assert_eq!(
+        desk["killSwitch"],
+        json!(true),
+        "the monitor can stop the desk"
+    );
 
     // Release: not in the key's method list, so the protocol refuses it. The contract would
     // refuse it too, since release is owner-only. Two independent barriers again.
@@ -445,7 +454,10 @@ async fn monitor_may_engage_but_its_key_cannot_release() -> Result<()> {
 async fn every_role_gets_a_least_privilege_key() -> Result<()> {
     assert_eq!(methods_for_role("TRADER").len(), 4);
     assert_eq!(methods_for_role("BASELINE").len(), 4);
-    assert_eq!(methods_for_role("MONITOR"), vec!["engage_kill_switch", "record_mark"]);
+    assert_eq!(
+        methods_for_role("MONITOR"),
+        vec!["engage_kill_switch", "record_mark"]
+    );
     assert_eq!(methods_for_role("DATA"), vec!["record_mark"]);
     // An Analyst writes no receipts at all: it emits a signal off chain.
     assert!(methods_for_role("ANALYST").is_empty());

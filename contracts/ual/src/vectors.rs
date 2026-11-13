@@ -86,7 +86,11 @@ fn canonical_cases() -> Value {
             r#"{"b":1,"a":null}"#,
             r#"{"a":null,"b":1}"#,
         ),
-        ("booleans", r#"{"t":true,"f":false}"#, r#"{"f":false,"t":true}"#),
+        (
+            "booleans",
+            r#"{"t":true,"f":false}"#,
+            r#"{"f":false,"t":true}"#,
+        ),
         (
             "negative-and-large-safe-integers",
             r#"{"n":-85000000,"big":9007199254740991}"#,
@@ -437,8 +441,12 @@ fn receipt_cases() -> Value {
         DESK.to_string(),
         format!(
             "ed25519:{}",
-            bs58::encode(SigningKey::from_bytes(&[7u8; 32]).verifying_key().to_bytes())
-                .into_string()
+            bs58::encode(
+                SigningKey::from_bytes(&[7u8; 32])
+                    .verifying_key()
+                    .to_bytes()
+            )
+            .into_string()
         ),
         "b".repeat(64),
         "tee-fetcher-1".to_string(),
@@ -493,8 +501,20 @@ fn receipt_cases() -> Value {
             direction: Direction::LONG,
             verifier_code_hash: "a".repeat(64),
             items: vec![
-                mk("newswire-a.example", "newswire-a", EvidenceKind::NEWS, T0 + 500_000_000_000, 1),
-                mk("hyperliquid", "exchange-hl", EvidenceKind::PRICE, T0 + 550_000_000_000, 2),
+                mk(
+                    "newswire-a.example",
+                    "newswire-a",
+                    EvidenceKind::NEWS,
+                    T0 + 500_000_000_000,
+                    1,
+                ),
+                mk(
+                    "hyperliquid",
+                    "exchange-hl",
+                    EvidenceKind::PRICE,
+                    T0 + 550_000_000_000,
+                    2,
+                ),
             ],
         },
         h,

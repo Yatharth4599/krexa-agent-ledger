@@ -33,8 +33,8 @@ use serde_json::{json, Value};
 
 mod canonical;
 mod errors;
-mod evidence;
 mod events;
+mod evidence;
 mod policy;
 mod types;
 
@@ -287,9 +287,15 @@ impl Ual {
         self.assert_not_paused();
         let mut desk = self.desk(&desk_id);
         self.assert_desk_owner(&desk);
-        require(decode_ed25519_pubkey(&pubkey).is_some(), E19_UNKNOWN_FETCHER);
+        require(
+            decode_ed25519_pubkey(&pubkey).is_some(),
+            E19_UNKNOWN_FETCHER,
+        );
         require(is_hex64(&attestation_hash), E13_BAD_HASH);
-        require(label.len() <= 64 && canonical::is_printable_ascii(&label), E18_NON_ASCII);
+        require(
+            label.len() <= 64 && canonical::is_printable_ascii(&label),
+            E18_NON_ASCII,
+        );
 
         if let Some(existing) = desk.fetchers.iter_mut().find(|f| f.pubkey == pubkey) {
             existing.attestation_hash = attestation_hash.clone();
@@ -443,8 +449,8 @@ impl Ual {
         let policy = self.policy_of(&desk);
         self.assert_chain(&desk, &prev_hash);
 
-        let requested =
-            parse_micro_usd_unsigned(&intent.notional_usd).unwrap_or_else(|| env::panic_str(E21_MALFORMED_AMOUNT));
+        let requested = parse_micro_usd_unsigned(&intent.notional_usd)
+            .unwrap_or_else(|| env::panic_str(E21_MALFORMED_AMOUNT));
         // A zero notional is a no-op that still appends a receipt and, as a CLOSE or fill,
         // could be mistaken for an exit.
         require(requested > 0, E21_MALFORMED_AMOUNT);
@@ -454,9 +460,15 @@ impl Ual {
             require(evidence::bounded_text(s, MAX_IDENT_LEN), E18_NON_ASCII);
         }
         if let Some(q) = &intent.quote_ref {
-            require(evidence::bounded_text(&q.kind, MAX_IDENT_LEN), E18_NON_ASCII);
+            require(
+                evidence::bounded_text(&q.kind, MAX_IDENT_LEN),
+                E18_NON_ASCII,
+            );
             require(is_hex64(&q.sha256), E13_BAD_HASH);
-            require(evidence::bounded_text(&q.signature, MAX_REF_LEN), E18_NON_ASCII);
+            require(
+                evidence::bounded_text(&q.signature, MAX_REF_LEN),
+                E18_NON_ASCII,
+            );
         }
         if let Some(h) = &decision_hash {
             require(is_hex64(h), E13_BAD_HASH);
@@ -475,10 +487,7 @@ impl Ual {
             _ => claimed_equity,
         };
         let daily_pnl = daily_pnl_against(&stats, now, equity);
-        let dd_bps = drawdown_bps(
-            parse_micro_usd(&stats.high_water_usd).unwrap_or(0),
-            equity,
-        );
+        let dd_bps = drawdown_bps(parse_micro_usd(&stats.high_water_usd).unwrap_or(0), equity);
 
         let mut reasons: Vec<String> = Vec::new();
 
@@ -645,8 +654,14 @@ impl Ual {
 
         // Bound what lands in the receipt, then make sure this settlement was not already
         // claimed by another fill, on this desk or any other.
-        require(evidence::bounded_text(&fill.reference, MAX_REF_LEN), E18_NON_ASCII);
-        require(evidence::bounded_text(&fill.price, MAX_IDENT_LEN), E18_NON_ASCII);
+        require(
+            evidence::bounded_text(&fill.reference, MAX_REF_LEN),
+            E18_NON_ASCII,
+        );
+        require(
+            evidence::bounded_text(&fill.price, MAX_IDENT_LEN),
+            E18_NON_ASCII,
+        );
         if let Some(h) = &fill.evidence_sha256 {
             require(is_hex64(h), E13_BAD_HASH);
         }
@@ -679,7 +694,8 @@ impl Ual {
             // auto kill switch only covers the loss limit when the policy turns it on.
             let stats = desk.stats(desk.mode);
             require(
-                stats.last_mark_ts != 0 && now.saturating_sub(stats.last_mark_ts) <= MARK_MAX_AGE_NS,
+                stats.last_mark_ts != 0
+                    && now.saturating_sub(stats.last_mark_ts) <= MARK_MAX_AGE_NS,
                 E22_FILL_NOT_PERMITTED,
             );
             let marked = parse_micro_usd(&stats.last_equity_usd).unwrap_or(0);
@@ -692,7 +708,10 @@ impl Ual {
             if policy.evidence_required() {
                 let approved_at: u64 = intent_receipt.ts.parse().unwrap_or(0);
                 let max_age_ns = policy.evidence_max_age_sec().saturating_mul(1_000_000_000);
-                require(now.saturating_sub(approved_at) <= max_age_ns, E22_FILL_NOT_PERMITTED);
+                require(
+                    now.saturating_sub(approved_at) <= max_age_ns,
+                    E22_FILL_NOT_PERMITTED,
+                );
             }
         } else {
             let open = open_notional(&desk, &intent.asset, &intent.venue);
@@ -804,7 +823,10 @@ impl Ual {
         // and it only ever tightens.
         let loss_limit = policy.daily_loss_limit_usd();
         let mut auto_engaged = false;
-        if policy.auto_on_daily_loss() && loss_limit > 0 && daily_pnl <= -loss_limit && !desk.kill_switch
+        if policy.auto_on_daily_loss()
+            && loss_limit > 0
+            && daily_pnl <= -loss_limit
+            && !desk.kill_switch
         {
             desk.kill_switch = true;
             desk.kill_reason = "auto: daily loss limit".to_string();
@@ -896,7 +918,10 @@ impl Ual {
             is_owner || (is_monitor && policy.monitor_may_engage()),
             E01_NOT_OWNER,
         );
-        require(reason.len() <= 200 && canonical::is_printable_ascii(&reason), E18_NON_ASCII);
+        require(
+            reason.len() <= 200 && canonical::is_printable_ascii(&reason),
+            E18_NON_ASCII,
+        );
 
         desk.kill_switch = true;
         desk.kill_reason = reason.clone();
@@ -931,10 +956,7 @@ impl Ual {
             },
         );
         self.desks.insert(desk_id.clone(), desk);
-        events::emit(
-            events::KILL_SWITCH_RELEASED,
-            json!({"deskId": desk_id}),
-        );
+        events::emit(events::KILL_SWITCH_RELEASED, json!({"deskId": desk_id}));
     }
 
     // ------------------------------------------------------------ global pause
@@ -1104,7 +1126,11 @@ impl Ual {
             None => return (0, Some(seq), vec![R_NO_EVIDENCE.to_string()]),
             Some(r) => r,
         };
-        if self.filled.get(&evidence_used_key(&desk.desk_id, seq)).is_some() {
+        if self
+            .filled
+            .get(&evidence_used_key(&desk.desk_id, seq))
+            .is_some()
+        {
             reasons.push(R_EVIDENCE_USED.to_string());
         }
         let summary = match (&receipt.kind, &receipt.evidence) {
