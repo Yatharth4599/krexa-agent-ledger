@@ -10,6 +10,7 @@
     "loop": "tsx src/main.ts --loop",
     "verify": "tsx src/main.ts --verify",
     "stats": "tsx src/main.ts --stats",
+    "test": "tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

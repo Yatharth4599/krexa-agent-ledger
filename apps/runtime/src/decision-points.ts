@@ -15,6 +15,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { sha256Hex } from "@krexa-ual/sdk";
 import { extractPrice } from "@krexa-ual/verifier";
 
 import type { MarketView } from "./analyst.js";
@@ -87,10 +88,22 @@ export function decisionPoints(archiveDir: string, lines?: ArchiveLine[]): Decis
         gaps.push(l.source);
         continue;
       }
+      // The hash becomes a file name, so it must be 64 hex digits and nothing else.
+      if (!/^[0-9a-f]{64}$/.test(l.contentHash)) {
+        gaps.push(`${l.source} (malformed contentHash)`);
+        continue;
+      }
       const raw = join(archiveDir, "raw", `${l.contentHash}.json`);
       if (!existsSync(raw)) {
         // The index says this body was stored and it is not there. A gap, not a silent skip.
         gaps.push(`${l.source} (raw body missing)`);
+        continue;
+      }
+      const body = readFileSync(raw, "utf8");
+      // The file name is only a claim. Re-hash what is on disk: a replay on edited bytes would
+      // be signed as evidence under the hash of bytes that were never fetched.
+      if (sha256Hex(body) !== l.contentHash) {
+        gaps.push(`${l.source} (raw body does not match its hash)`);
         continue;
       }
       snapshots.push({
@@ -99,7 +112,7 @@ export function decisionPoints(archiveDir: string, lines?: ArchiveLine[]): Decis
         kind: l.kind,
         url: l.url,
         contentHash: l.contentHash,
-        body: readFileSync(raw, "utf8"),
+        body,
         fetchedAtNs: l.ts,
       });
     }

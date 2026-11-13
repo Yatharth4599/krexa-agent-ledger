@@ -69,7 +69,15 @@ async function loadFromChain(rpcUrl, contractId, deskId) {
     if (!page.length) break;
     receipts.push(...page);
   }
-  return { receipts, head, contractId, deskId };
+  // A node (or a short page) that hands back fewer receipts than the head says exist would
+  // otherwise verify: a prefix of a valid chain is a valid chain. Compare against the head.
+  const last = receipts[receipts.length - 1];
+  const incomplete =
+    receipts.length !== head.seq || (last !== undefined && last.hash !== head.hash)
+      ? `truncated: got ${receipts.length} receipts, head says seq ${head.seq}` +
+        (last !== undefined && last.hash !== head.hash ? ", last hash differs from head hash" : "")
+      : null;
+  return { receipts, head, contractId, deskId, incomplete };
 }
 
 // ---------------------------------------------------------------- explorer
@@ -80,7 +88,7 @@ let tampered = null;
 function renderChain() {
   const source = tampered ?? loaded;
   if (!source) return;
-  const { receipts, contractId, deskId, isLocal } = source;
+  const { receipts, contractId, deskId, isLocal, incomplete } = source;
 
   // Anchor against the desk's genesis, derived in the page from the contract id and desk id.
   // Without the anchor, a run that was internally consistent but rebased onto a different
@@ -89,7 +97,12 @@ function renderChain() {
   const result = verifyChain(receipts, receipts[0]?.seq === 1 ? expectedGenesis : undefined);
 
   const status = $("chainStatus");
-  if (result.valid) {
+  if (incomplete) {
+    status.className = "status broken";
+    status.innerHTML =
+      `<strong>chain not valid (${esc(incomplete)})</strong><br>` +
+      `<span class="hashes">the receipts shown do not reach the on-chain head, so they prove nothing about it</span>`;
+  } else if (result.valid) {
     status.className = "status good";
     status.innerHTML =
       `chain verifies: ${receipts.length} receipts, every hash recomputed in this page` +
@@ -263,9 +276,9 @@ async function renderLeaderboard(mode) {
         <td class="mono">${esc(deskId)}</td>
         <td class="mono">${esc(desk.owner)}</td>
         <td><span class="badge paper">${esc(desk.mode)}</span></td>
-        <td class="mono">${head?.seq ?? 0}</td>
+        <td class="mono">${esc(head?.seq ?? 0)}</td>
         <td>${desk.killSwitch ? '<span class="bad">engaged</span>' : '<span class="dim">clear</span>'}</td>
-        <td class="mono">${desk.openPositions?.length ?? 0}</td>
+        <td class="mono">${esc(desk.openPositions?.length ?? 0)}</td>
         <td class="warn">CANT_TELL_YET</td>
         <td class="mono">not reachable at this rate</td>
       </tr>`,
@@ -337,11 +350,21 @@ function renderMarkdown(md) {
   if (inCode) out.push("</pre>");
   return out.join("\n");
 }
+/**
+ * Only http(s) and scheme-less (relative) hrefs. Control characters and spaces are stripped
+ * first because browsers ignore them inside a URL, so `java\tscript:` would otherwise look
+ * relative here and still run as `javascript:`.
+ */
+function safeHref(u) {
+  const c = u.replace(/[\u0000- \u007f-\u009f]/g, "");
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(c)) return c;
+  return /^https?:/i.test(c) ? c : "#";
+}
 function inline(s) {
   return esc(s)
     .replace(/`([^`]+)`/g, "<code>$1</code>")
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a class="link" href="$2">$1</a>');
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, text, url) => `<a class="link" href="${safeHref(url)}">${text}</a>`);
 }
 
 async function loadEbi() {
@@ -413,7 +436,7 @@ function renderReplay() {
           </div>
           <div class="hashes">action ${esc(r.action)}</div>
           <div class="hashes">would have done without the attack: ${esc(r.priorAction ?? "?")}</div>
-          ${r.verifierK !== null && r.verifierK !== undefined ? `<div class="hashes">verifier k = ${r.verifierK}</div>` : ""}
+          ${r.verifierK !== null && r.verifierK !== undefined ? `<div class="hashes">verifier k = ${esc(r.verifierK)}</div>` : ""}
           ${r.reasons?.length ? `<div class="reasons">${r.reasons.map(esc).join(", ")}</div>` : ""}
           ${
             r.verifierExplanation
