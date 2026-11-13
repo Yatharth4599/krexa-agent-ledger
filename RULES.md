@@ -15,11 +15,11 @@ enters this repo.
 
 | Agent | Account | May do | May never do |
 |---|---|---|---|
-| Data | `data.<desk>.testnet` | Fetch public prices and markets, write snapshots to the archive with hashes, `record_mark` | Decide direction, size anything, call an LLM |
+| Data | `data.<desk>.testnet` | Fetch public prices and markets, write snapshots to the archive with hashes. Its equity number reaches the chain through the Monitor or owner `record_mark` | Decide direction, size anything, call an LLM |
 | Analyst | `analyst.<desk>.testnet` | Read the snapshot and the evidence bundle, emit one signal with citations, write a DecisionRecord | Submit an intent, size a position, touch the ledger directly |
-| Trader | `trader.<desk>.testnet` | `submit_evidence`, `submit_intent`, `record_fill`, `record_mark` | Transfer, call any other method, call any other contract, change the policy, register a fetcher, release the kill switch |
+| Trader | `trader.<desk>.testnet` | `submit_evidence`, `submit_intent`, `record_fill` (its key also lists `record_mark`, which the contract refuses: marks are owner or Monitor only) | Mark its own equity, transfer, call any other method, call any other contract, change the policy, register a fetcher, release the kill switch |
 | Monitor | `monitor.<desk>.testnet` | `engage_kill_switch`, `record_mark` | Release the kill switch, submit an intent, call an LLM at all |
-| Baseline | `bh.<desk>.testnet`, `mom.<desk>.testnet`, `rnd.<desk>.testnet` | `submit_intent`, `record_fill`, `record_mark` on its own desk | Read anything the Analyst desks read beyond the same price stream |
+| Baseline | `bh.<desk>.testnet`, `mom.<desk>.testnet`, `rnd.<desk>.testnet` | `submit_intent`, `record_fill` on its own desk (marks come from the owner or Monitor) | Read anything the Analyst desks read beyond the same price stream |
 | Owner | `<desk>.testnet` | `commit_policy`, `set_mode`, `register_agent`, `retire_agent`, `register_fetcher`, `revoke_fetcher`, `record_flow`, kill switch both ways | Nothing is exempt from the policy once committed |
 
 **Enforced on chain.** `submit_intent` and friends check the caller is a registered agent with the
@@ -38,7 +38,7 @@ Verifier  -> EvidenceBundle {items, groups, stance, k, sizeMultiplierBps}   (det
 Trader    -> submit_evidence(bundle)  -> EVIDENCE receipt, seq e
 Trader    -> submit_intent(intent, evidence_seq = e) -> INTENT receipt, APPROVED or REJECTED
 Trader    -> record_fill(intent_seq)  -> FILL receipt          (only if APPROVED)
-Data      -> record_mark(equity, decisionsRoot)  -> MARK receipt
+Monitor   -> record_mark(equity, decisionsRoot)  -> MARK receipt   (owner or Monitor only)
 ```
 
 A decision that ends in HOLD still produces a DecisionRecord. Its hash goes into the next MARK

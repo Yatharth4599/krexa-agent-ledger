@@ -103,7 +103,9 @@ Trading calls are signed by `trader-ebi.krexa-ual.testnet`, a separate account.
 ## What NEAR does here, concretely
 
 - **Function-call access keys.** The Trader's key is scoped to one contract and four methods
-  (`submit_evidence`, `submit_intent`, `record_fill`, `record_mark`). It cannot transfer, cannot
+  (`submit_evidence`, `submit_intent`, `record_fill`, `record_mark`), and the contract refuses its
+  `record_mark`: marks come only from the owner or the MONITOR, so a compromised Trader cannot
+  mark its own losses away. It cannot transfer, cannot
   call an owner method, cannot reach another contract, and cannot grant itself a better key. The
   **protocol** refuses all of that before any contract code runs, so a bug in our contract would
   not help an attacker. 12 tests in `tests/integration/tests/fc_keys.rs`, plus
