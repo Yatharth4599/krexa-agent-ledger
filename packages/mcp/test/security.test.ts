@@ -77,7 +77,7 @@ describe("chain tools pin both ends to the head", () => {
     stubRpc(chain);
     const rec = JSON.parse((await call("get_record", { deskId: "desk-a" })).at(-1)!);
     expect(rec.chainValid).toBe(true);
-    const ver = JSON.parse((await call("verify_chain", { deskId: "desk-a" }))[0]!);
+    const ver = JSON.parse((await call("verify_chain", { deskId: "desk-a" })).at(-1)!);
     expect(ver.chainValid).toBe(true);
   });
   it("get_record fails when the node truncates the tail", async () => {
@@ -87,7 +87,7 @@ describe("chain tools pin both ends to the head", () => {
   });
   it("verify_chain fails when the node truncates the tail", async () => {
     stubRpc(chain.slice(0, 3));
-    const ver = JSON.parse((await call("verify_chain", { deskId: "desk-a" }))[0]!);
+    const ver = JSON.parse((await call("verify_chain", { deskId: "desk-a" })).at(-1)!);
     expect(ver.chainValid).toBe(false);
   });
   it("get_record fails when the node drops the first receipts of a fromSeq=1 run", async () => {
@@ -110,7 +110,7 @@ describe("tool argument validation", () => {
     ["get_scorecard", { deskId: "desk-a", mode: "bogus" }],
   ])("%s %j is refused before any RPC call", async (tool, args) => {
     const calls = stubRpc(chain);
-    const out = (await call(tool, args as Record<string, unknown>)).join("\n");
+    const out = (await call(tool, args as Record<string, unknown>)).at(-1)!;
     expect(out).toMatch(/^error: /);
     expect(calls).toHaveLength(0);
   });

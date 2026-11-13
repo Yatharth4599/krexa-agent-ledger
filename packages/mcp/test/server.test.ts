@@ -198,7 +198,7 @@ describe("reading the live testnet chain", () => {
 
   it("verifies the chain against a locally derived genesis", async () => {
     if (!online) return;
-    const out = await callText("verify_chain", { deskId: "ebi" });
+    const out = await callPayload("verify_chain", { deskId: "ebi" });
     const parsed = JSON.parse(out) as {
       genesisAnchored: boolean;
       everyHashRecomputes: boolean;
@@ -213,7 +213,7 @@ describe("reading the live testnet chain", () => {
 
   it("reports CANT_TELL_YET with a reason rather than a number", async () => {
     if (!online) return;
-    const out = await callText("get_scorecard", { deskId: "ebi", mode: "paper" });
+    const out = await callPayload("get_scorecard", { deskId: "ebi", mode: "paper" });
     const parsed = JSON.parse(out) as {
       skillVerdict: string;
       annualisedReturn: null;

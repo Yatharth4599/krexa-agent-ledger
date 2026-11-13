@@ -427,7 +427,7 @@ export function createServer(): Server {
           const { receipts, chain } = await sdkClient().getRecord(deskId);
           const expectedGenesis = genesisHash(CONTRACT_ID, deskId);
           const mismatched = receipts.filter((r) => receiptHash(r) !== r.hash).map((r) => r.seq);
-          return text(
+          return untrusted(
             JSON.stringify(
               {
                 deskId,
@@ -463,7 +463,7 @@ export function createServer(): Server {
           ).size;
           const intents = receipts.filter((r) => r.kind === "INTENT" && r.mode === mode);
           const rejected = intents.filter((r) => r.verdict === "REJECTED");
-          return text(
+          return untrusted(
             JSON.stringify(
               {
                 deskId,
@@ -531,7 +531,8 @@ export function createServer(): Server {
           );
       }
     } catch (e) {
-      return text(`error: ${String((e as Error).message ?? e)}`);
+      // Error text can quote RPC or receipt fields, so it carries the same note.
+      return untrusted(`error: ${String((e as Error).message ?? e)}`);
     }
   });
 
