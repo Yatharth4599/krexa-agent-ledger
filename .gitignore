@@ -37,3 +37,7 @@ data/archive/recorder.log
 experiments/ebi/scheduled-*.log
 experiments/ebi/launchd-*.log
 apps/web/public/ual.js
+
+# the submission payload: YK's email and mainnet payout account. Template is committed.
+submission.local.json
+submission.sent.json

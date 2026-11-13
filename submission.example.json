@@ -1,0 +1,20 @@
+{
+  "_comment": [
+    "Template for the hackathon submission. Copy to submission.local.json, which is gitignored,",
+    "and fill in the empty values. Every one of them is YK's decision: nothing here is generated.",
+    "Then run `pnpm submit` to validate and print the payload, and `pnpm submit --send` to send it",
+    "after reading it. docs/SUBMISSION.md records which values are already decided and why.",
+    "requestId is added by the script on first run and then kept, so a retry is the same",
+    "application rather than a second one. Do not fill it in by hand."
+  ],
+  "projectName": "",
+  "leadName": "",
+  "email": "",
+  "size": "2 - 4",
+  "tracks": ["swarms", "defi"],
+  "nearAddress": "",
+  "projectUrl": "https://github.com/Yatharth4599/krexa-agent-ledger",
+  "demoUrl": "",
+  "idea": "",
+  "consent": false
+}
