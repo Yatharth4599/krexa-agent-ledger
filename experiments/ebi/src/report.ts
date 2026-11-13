@@ -12,7 +12,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import {
@@ -42,6 +42,12 @@ export interface RunMeta {
   pointsByGroupsAvailable?: Record<string, number>;
   /** Failed fetches per source id. Absent on runs before 10 Nov 2026. */
   failedFetchesBySource?: Record<string, number>;
+  /**
+   * When the run finished, written by runs from 13 Nov 2026 onward. Absent on older ones, where
+   * `lastPoint` stands in: see `latestRun`, and note that a file mtime must never be used for
+   * this, because a clone rewrites every one of them.
+   */
+  finishedAt?: string;
   /**
    * How the replay handled evidence freshness. Absent on runs before 13 Nov 2026, and its
    * absence is the thing to look for rather than a detail: those runs submitted archive
@@ -496,23 +502,32 @@ export function renderResults(
 }
 
 /**
- * The most recently *finished* run, not the last directory name in sort order.
+ * The most recently finished run, decided from the runs' own contents.
  *
- * Two bugs lived here and both bit on 13 Nov 2026, killing the scheduled run's report.
+ * Three ways of answering this have now been wrong, and the third is the instructive one.
  *
- * A run id is `sim-<first archived point>-<n>p`, so sorting by name ranks runs by when the
- * **archive window** starts, not by when the run happened. A short run over a later slice of
- * the archive therefore outranks a long run recorded afterwards: `sim-2026-11-10120911-14p`
- * beat `sim-2026-11-06154524-293p` despite being three days older and 279 points smaller.
+ * **By directory name.** A run id is `sim-<first archived point>-<n>p`, so sorting by name ranks
+ * runs by when the **archive window** starts, not by when the run happened.
+ * `sim-2026-11-10120911-14p` beat `sim-2026-11-06154524-293p` despite being three days older and
+ * 279 points smaller.
  *
- * And an interrupted run leaves a directory holding only empty `artifacts/` and `records/`.
- * `loadRun` quite correctly throws on one, but nothing had filtered it out first, so an
- * abandoned attempt could take down a report on a run that completed perfectly.
+ * **By `run.json` mtime.** Correct on the machine that produced the runs and wrong everywhere
+ * else: a `git clone` stamps every checked-out file with the checkout time, so on a fresh clone
+ * the order is whatever order git happened to write in. It picked an 11 point run from 7 Nov over
+ * the 323 point run, which broke the one property SPEC.md M5 asks for by name, byte-identical
+ * regeneration, on exactly the machine that property exists for: a judge's. Filesystem metadata
+ * is not part of the data and must not decide anything.
  *
- * So: consider only directories that can actually be loaded, and rank them by when `run.json`
- * was written, which is the one timestamp that means "this run finished".
+ * So the key comes out of `run.json` itself. `finishedAt` is written by runs from 13 Nov 2026
+ * onward; for older runs the newest decision point stands in for it, which is a lower bound on
+ * when the run could have happened. Ties break on point count and then on run id, so the answer
+ * is total, deterministic, and identical in every checkout.
+ *
+ * Incomplete directories are excluded first: an interrupted run leaves empty `artifacts/` and
+ * `records/`, and `loadRun` throws on one, so an abandoned attempt could otherwise take down the
+ * report for a run that completed perfectly.
  */
-function latestRun(resultsDir: string): string | undefined {
+export function latestRun(resultsDir: string): string | undefined {
   if (!existsSync(resultsDir)) return undefined;
   const all = readdirSync(resultsDir).filter(
     (d) => d.startsWith("sim-") || d.startsWith("paper-"),
@@ -532,8 +547,25 @@ function latestRun(resultsDir: string): string | undefined {
     );
   }
   return complete
-    .map((d) => ({ d, at: statSync(join(resultsDir, d, "run.json")).mtimeMs }))
-    .sort((a, b) => a.at - b.at)
+    .map((d) => {
+      const meta = JSON.parse(readFileSync(join(resultsDir, d, "run.json"), "utf8")) as Partial<RunMeta>;
+      return {
+        d,
+        at: meta.finishedAt ?? meta.lastPoint ?? "",
+        points: meta.points ?? 0,
+      };
+    })
+    .sort((a, b) =>
+      a.at !== b.at
+        ? a.at < b.at
+          ? -1
+          : 1
+        : a.points !== b.points
+          ? a.points - b.points
+          : a.d < b.d
+            ? -1
+            : 1,
+    )
     .at(-1)?.d;
 }
 
