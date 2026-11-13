@@ -23,19 +23,52 @@ filter reports the filter's status. `set -o pipefail`, or capture the status bef
 
 ## Tested: a fresh clone in a clean environment
 
-Re-measured on 7 Nov 2026 after the fix, at commit `672cdc8`, from `git clone` of the public
-repo into an empty directory, with `NEAR_SANDBOX_BIN_PATH`, `NEAR_SANDBOX_BINARY_PATH`,
-`NEARAI_API_KEY`, `FETCHER_SECRET_KEY` and `UAL_CONTRACT_ID` all unset. **Each exit status
-captured directly from the command, never through a pipe:**
+Measured on 13 Nov 2026 at commit `425542c`, every row from the same clone, from `git clone` of
+the public repo into an empty directory, with `NEAR_SANDBOX_BIN_PATH`,
+`NEAR_SANDBOX_BINARY_PATH`, `NEARAI_API_KEY`, `FETCHER_SECRET_KEY` and `UAL_CONTRACT_ID` all
+unset. **Each exit status captured directly from the command, never through a pipe:**
+
+Commits after `425542c` are this file and the archive index the recorder keeps appending to.
+Neither is read by any command below, so re-running them at `HEAD` measures the same tree.
 
 | Command | Result |
 |---|---|
-| `./scripts/setup.sh` | **exit 0.** Created `.env` from the example, installed deps, built the contract (316,817 byte wasm), fetched `neard 2.14.0`. |
-| `pnpm test` | **exit 0.** 411 tests: 77 Rust unit, 12 + 3 sandbox integration, 319 TypeScript (102 sdk, 68 scorecard, 53 verifier, 20 mcp, 76 runtime). |
+| `./scripts/setup.sh` | **exit 0.** Installed deps, built the contract (316,817 byte wasm, sha256 `ecc7927f...`), fetched `neard 2.14.0`. |
+| `pnpm test` | **exit 0.** 433 tests: 77 Rust unit, 12 + 3 sandbox integration, 341 TypeScript (102 sdk, 79 scorecard, 53 verifier, 20 mcp, 6 experiments-ebi, 81 runtime). |
 | `pnpm demo` | **exit 0.** "demo complete: every assertion held". |
-| `pnpm attack-demo` | **exit 0.** "every attacking attempt was blocked, and every policy breach was recorded". |
-| `pnpm ebi:report` | **exit 0**, and produced `docs/RESULTS.md` **byte-identical** to the committed one: `git status` reported the file unchanged, and its sha256 `c1d47d0a...` matches the development checkout. |
-| `pnpm web` | served `/` and `/ual.js` with HTTP 200. |
+| `pnpm attack-demo` | **exit 0.** "every attacking attempt was blocked, and every policy breach was recorded". It rewrites `docs/attack-demo.log`, which then differs from the committed copy by one line, the timestamp of the run. |
+| `pnpm ebi:report` | **exit 0**, and produced `docs/RESULTS.md` **byte-identical** to the committed one: `git diff` reported no change, sha256 `6f00c5e2...` in both checkouts. |
+| `pnpm web` | HTTP 200 on `/`, `/app.js`, `/style.css`, `/ual.js`, `/data/runs`, `/data/results-md` and `/data/runs/sim-2026-11-06154524-323p/run.json`. The run list held all five committed runs and the served results document named the 323 point one. |
+
+### A third way of measuring the wrong thing, caught the same day
+
+The first attempt at that last row described a **different checkout**. An earlier clone's web
+server was still listening on port 3000, so `pnpm web` in the clone under test failed with
+`EADDRINUSE` and every `curl` was answered by the old one. The rows looked plausible: HTTP 200
+across the board.
+
+What gave it away was asking for something only the new tree could have. `/data/runs` came back
+with four runs and not five, missing the 323 point run that is the whole point of this
+measurement. Hence that route and the `run.json` fetch in the row above: a check that cannot
+pass from the wrong tree is worth more than a check that merely passes.
+
+Three for three today, in the same shape: the pipe that reported grep's status, the ordering that
+read file mtimes, and a port answered by a stale process. Each one produced a plausible pass
+without measuring the thing it claimed to measure.
+
+### The measurement that mattered, on the run before this one
+
+The same check at commit `98da5a5`, a few hours earlier, **failed** on the byte-identity line:
+the clone regenerated `docs/RESULTS.md` from an 11 point run of 7 Nov rather than the 323 point
+run of 13 Nov. The report was choosing the latest run by `run.json` mtime, and a clone stamps
+every checked-out file with the checkout time, so the ordering was whatever order git wrote in.
+Correct on the machine that produced the runs; wrong on every other machine, which is to say
+wrong on a judge's.
+
+It is worth recording for the same reason as the correction above: nothing in the repo could have
+caught it. Both unit tests and a careful reading of the function pass. Only running the thing on
+a real clone fails. The ordering key now comes out of `run.json` and `latestRun` has six tests
+that set mtimes contradicting the right answer.
 
 Two further checks, because they are the ones that would quietly break:
 
@@ -49,7 +82,7 @@ Two further checks, because they are the ones that would quietly break:
 ### What the fresh clone deliberately does not have
 
 A judge gets no `.env`, no `data/archive/raw/` (gitignored, it is bulk), no `.sandbox/` and no
-`node_modules`. What they do get is `data/archive/index.jsonl` (225 lines at the time of this
+`node_modules`. What they do get is `data/archive/index.jsonl` (1,635 lines at this
 measurement, and growing while the recorder runs) and the
 run directories under `experiments/ebi/results`, which is why `pnpm ebi:report` works
 immediately on a clone.
