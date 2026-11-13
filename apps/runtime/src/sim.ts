@@ -359,7 +359,8 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
     traders[deskId] = trader;
     clients[deskId] = new UalClient(new WorkspacesCaller(trader, contract), contract.accountId);
   }
-  for (const deskId of desks) await clients[deskId]!.recordMark(deskId, START_EQUITY);
+  // Marks come from the owner: record_mark refuses TRADER and BASELINE keys.
+  for (const deskId of desks) await ownerClient.recordMark(deskId, START_EQUITY);
 
   const results: Record<string, DeskResult> = {};
   for (const deskId of desks) {
@@ -701,7 +702,7 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
   for (const deskId of desks) {
     const holds = holdHashes[deskId]!;
     try {
-      await clients[deskId]!.recordMark(deskId, START_EQUITY, decisionsRoot(holds));
+      await ownerClient.recordMark(deskId, START_EQUITY, decisionsRoot(holds));
     } catch (e) {
       log(
         `  WARNING ${deskId}: closing mark refused, ${holds.length} hold decision(s) are ` +

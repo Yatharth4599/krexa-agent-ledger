@@ -303,11 +303,9 @@ async function run(worker: Worker): Promise<void> {
 
   // ---------------------------------------------------------------- opening equity
   beat("Mark opening equity on both desks");
-  for (const [name, client] of [
-    [DESK_EBI, ebi],
-    [DESK_PLAIN, plain],
-  ] as const) {
-    const r = await client.recordMark(name, "10000000000");
+  for (const name of [DESK_EBI, DESK_PLAIN]) {
+    // The owner marks equity. record_mark refuses the TRADER key.
+    const r = await ownerClient.recordMark(name, "10000000000");
     say(`${name.padEnd(6)} equity ${usd(r.equityUsd ?? "0")}  seq ${r.seq}`);
   }
   note("DEMO DATA: $10,000 of simulated paper equity. Not a deposit, not a real balance.");

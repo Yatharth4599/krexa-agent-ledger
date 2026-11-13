@@ -22,6 +22,22 @@ use crate::types::*;
 
 pub struct GateResult {
     pub summary: EvidenceSummary,
+    /// True when an otherwise valid item was already spent by an earlier approved open on
+    /// this desk. Kept here rather than on the summary so the stored receipt shape is
+    /// unchanged. Such an item is marked not valid and does not count toward k.
+    pub any_spent: bool,
+}
+
+/// A free string that ends up in a receipt: printable ASCII and bounded, so one call cannot
+/// buy unbounded storage or smuggle bytes the canonical form would panic on.
+pub fn bounded_text(s: &str, max: usize) -> bool {
+    s.len() <= max && crate::canonical::is_printable_ascii(s)
+}
+
+/// `fetchedAt` is nanoseconds as a canonical decimal `u64`: no sign, no leading zeros, no
+/// whitespace. Otherwise one timestamp has many spellings, and each hashes differently.
+pub fn canonical_u64(s: &str) -> bool {
+    s.parse::<u64>().is_ok_and(|n| n.to_string() == s)
 }
 
 impl EvidenceBundleInput {
@@ -57,9 +73,11 @@ pub fn evaluate_bundle(
     policy: &Policy,
     desk: &Desk,
     now_ns: u64,
+    is_spent: &dyn Fn(&str) -> bool,
 ) -> GateResult {
     require(bundle.items.len() <= MAX_BUNDLE_ITEMS, E20_BUNDLE_TOO_LARGE);
     require(is_hex64(&bundle.verifier_code_hash), E13_BAD_HASH);
+    require(bounded_text(&bundle.asset, MAX_IDENT_LEN), E18_NON_ASCII);
 
     let max_age_ns = policy.evidence_max_age_sec().saturating_mul(1_000_000_000);
 
@@ -68,6 +86,7 @@ pub fn evaluate_bundle(
     let mut contradict_groups: Vec<String> = Vec::new();
     let mut any_bad_sig = false;
     let mut any_stale = false;
+    let mut any_spent = false;
     let mut attested = true;
 
     for entry in &bundle.items {
@@ -84,6 +103,10 @@ pub fn evaluate_bundle(
         let pubkey = decode_ed25519_pubkey(&entry.fetcher_key)
             .unwrap_or_else(|| env::panic_str(E19_UNKNOWN_FETCHER));
         require(is_hex64(&entry.item.content_hash), E13_BAD_HASH);
+        require(bounded_text(&entry.item.source, 128), E18_NON_ASCII);
+        require(bounded_text(&entry.item.source_group, MAX_IDENT_LEN), E18_NON_ASCII);
+        require(bounded_text(&entry.item.url, MAX_REF_LEN), E18_NON_ASCII);
+        require(canonical_u64(&entry.item.fetched_at), E21_MALFORMED_AMOUNT);
 
         // --- signature ---
         let sig_ok = match decode_ed25519_signature(&entry.signature) {
@@ -105,7 +128,13 @@ pub fn evaluate_bundle(
             any_stale = true;
         }
 
-        let valid = sig_ok && fresh;
+        // An item that already backed an approved open on this desk is spent. Resubmitting
+        // the same signed items in a new bundle must not buy another open.
+        let spent = sig_ok && fresh && is_spent(&entry.item.content_hash);
+        if spent {
+            any_spent = true;
+        }
+        let valid = sig_ok && fresh && !spent;
 
         // --- independence group ---
         // The policy decides which group a source belongs to. The fetcher's own claim in
@@ -160,5 +189,6 @@ pub fn evaluate_bundle(
             any_stale,
             attested,
         },
+        any_spent,
     }
 }

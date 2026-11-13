@@ -773,6 +773,10 @@ pub fn parse_micro_usd(s: &str) -> Option<MicroUsd> {
         return None;
     }
     let v: i128 = digits.parse().ok()?;
+    // "-0" is a second spelling of zero, and the string is what gets hashed.
+    if neg && v == 0 {
+        return None;
+    }
     Some(if neg { -v } else { v })
 }
 

@@ -375,6 +375,9 @@ fn validate_evidence(ev: &Value) -> Result<(), &'static str> {
                 return Err(E05_POLICY_INVALID);
             }
             all_sources.push(name);
+            if all_sources.len() > MAX_SOURCES_PER_POLICY {
+                return Err(E05_POLICY_INVALID);
+            }
         }
     }
 
