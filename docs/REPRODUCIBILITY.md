@@ -23,7 +23,8 @@ filter reports the filter's status. `set -o pipefail`, or capture the status bef
 
 ## Tested: a fresh clone in a clean environment
 
-Re-measured on 13 Nov 2026 at commit `9ac892f`, the one being submitted, from `git clone` of the
+Re-measured on 13 Nov 2026 at commit `9ac892f`, which is the submitted tree apart from this
+file and the archive index that grows behind it, from `git clone` of the
 public repo into an empty directory, with `NEAR_SANDBOX_BIN_PATH`, `NEAR_SANDBOX_BINARY_PATH`,
 `NEARAI_API_KEY`, `FETCHER_SECRET_KEY` and `UAL_CONTRACT_ID` all unset. **Each exit status
 captured directly from the command, never through a pipe:**
