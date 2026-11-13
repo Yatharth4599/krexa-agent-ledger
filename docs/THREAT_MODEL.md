@@ -83,10 +83,10 @@ Honestly, in rough order of how much:
   the fetcher signs and needs a TypeScript signer change. Until then one item spends once per
   desk whatever it is cited for, which is the safe direction: it can only be used fewer times,
   never more.
-- **Cross-desk settlement reuse.** A fill reference (`kind` plus `ref`) is unique per desk
-  only. The same real venue transaction can be cited by fills on two different desks. A
-  contract-wide key was rejected on purpose: any desk could then front-run and burn another
-  desk's real venue tx reference, a cross-desk denial of service. Closing this properly needs
+- **Cross-owner settlement reuse.** A fill reference (`kind` plus `ref`) is unique per desk
+  owner: one owner cannot cite the same venue tx on two desks, but two different owners can.
+  A contract-wide key was rejected on purpose: any stranger could then front-run and burn
+  another owner's real venue tx reference, a denial of service. Closing this properly needs
   venue-signed settlement (the venue attests which account the fill belongs to), which the
   ledger cannot check on chain today.
 - **Marks are owner or Monitor, so a compromised owner key still marks anything.** The owner is

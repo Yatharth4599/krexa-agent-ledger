@@ -2186,18 +2186,16 @@ fn one_settlement_reference_cannot_back_two_fills() {
     c.record_fill(DESK.to_string(), second, sim_fill("100000000"), head);
 }
 
-/// The reference key is per desk, so another desk cannot front-run and burn a real venue tx
-/// reference. Cross-desk reuse is a documented known limit.
-#[test]
-fn the_same_settlement_reference_is_allowed_on_a_different_desk() {
+/// Fill a reference on DESK, then cite it again on a second desk owned by `other_owner`.
+fn reuse_reference_on_a_second_desk(other_owner: AccountId) {
     const OTHER: &str = "other-desk";
     let mut c = setup(false, "1000000000", "200000000");
     let first = approve_and_get_seq(&mut c, "100000000");
     let head = head_hash(&c);
     c.record_fill(DESK.to_string(), first, sim_fill("100000000"), head);
 
-    // A second desk, same owner and trader, its own policy and mark.
-    testing_env!(ctx(owner(), T0, NearToken::from_near(1)).build());
+    // A second desk with its own policy and mark, owned by `other_owner`.
+    testing_env!(ctx(other_owner.clone(), T0, NearToken::from_near(1)).build());
     c.create_desk(OTHER.to_string());
     c.commit_policy(
         OTHER.to_string(),
@@ -2238,6 +2236,20 @@ fn the_same_settlement_reference_is_allowed_on_a_different_desk() {
         head,
     );
     assert_eq!(f["kind"].as_str().unwrap(), "FILL");
+}
+
+/// One owner cannot cite the same venue tx on two of its desks.
+#[test]
+#[should_panic(expected = "E11_ALREADY_FILLED")]
+fn the_same_owner_cannot_reuse_a_settlement_reference_on_another_desk() {
+    reuse_reference_on_a_second_desk(owner());
+}
+
+/// The key is per owner, so a stranger's desk cannot front-run and burn this owner's reference,
+/// and this owner's fill does not block the stranger. Cross-owner reuse is a known limit.
+#[test]
+fn another_owner_is_not_blocked_by_this_owners_settlement_reference() {
+    reuse_reference_on_a_second_desk(stranger());
 }
 
 #[test]
