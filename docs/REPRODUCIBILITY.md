@@ -23,20 +23,35 @@ filter reports the filter's status. `set -o pipefail`, or capture the status bef
 
 ## Tested: a fresh clone in a clean environment
 
-Re-measured on 13 Nov 2026 at commit `9ac892f`, which is the submitted tree apart from this
-file and the archive index that grows behind it, from `git clone` of the
-public repo into an empty directory, with `NEAR_SANDBOX_BIN_PATH`, `NEAR_SANDBOX_BINARY_PATH`,
-`NEARAI_API_KEY`, `FETCHER_SECRET_KEY` and `UAL_CONTRACT_ID` all unset. **Each exit status
-captured directly from the command, never through a pipe:**
+Measured on 13 Nov 2026 at commit `425542c`, every row from the same clone, from `git clone` of
+the public repo into an empty directory, with `NEAR_SANDBOX_BIN_PATH`,
+`NEAR_SANDBOX_BINARY_PATH`, `NEARAI_API_KEY`, `FETCHER_SECRET_KEY` and `UAL_CONTRACT_ID` all
+unset. **Each exit status captured directly from the command, never through a pipe:**
 
 | Command | Result |
 |---|---|
 | `./scripts/setup.sh` | **exit 0.** Installed deps, built the contract (316,817 byte wasm, sha256 `ecc7927f...`), fetched `neard 2.14.0`. |
 | `pnpm test` | **exit 0.** 433 tests: 77 Rust unit, 12 + 3 sandbox integration, 341 TypeScript (102 sdk, 79 scorecard, 53 verifier, 20 mcp, 6 experiments-ebi, 81 runtime). |
 | `pnpm demo` | **exit 0.** "demo complete: every assertion held". |
-| `pnpm attack-demo` | **exit 0.** "every attacking attempt was blocked, and every policy breach was recorded". It rewrites `docs/attack-demo.log`, which differs from the committed copy by one line, the timestamp of the run. |
+| `pnpm attack-demo` | **exit 0.** "every attacking attempt was blocked, and every policy breach was recorded". It rewrites `docs/attack-demo.log`, which then differs from the committed copy by one line, the timestamp of the run. |
 | `pnpm ebi:report` | **exit 0**, and produced `docs/RESULTS.md` **byte-identical** to the committed one: `git diff` reported no change, sha256 `6f00c5e2...` in both checkouts. |
-| `pnpm web` | served `/`, `/ual.js`, `/data/runs` and `/data/results-md` with HTTP 200. |
+| `pnpm web` | HTTP 200 on `/`, `/app.js`, `/style.css`, `/ual.js`, `/data/runs`, `/data/results-md` and `/data/runs/sim-2026-11-06154524-323p/run.json`. The run list held all five committed runs and the served results document named the 323 point one. |
+
+### A third way of measuring the wrong thing, caught the same day
+
+The first attempt at that last row described a **different checkout**. An earlier clone's web
+server was still listening on port 3000, so `pnpm web` in the clone under test failed with
+`EADDRINUSE` and every `curl` was answered by the old one. The rows looked plausible: HTTP 200
+across the board.
+
+What gave it away was asking for something only the new tree could have. `/data/runs` came back
+with four runs and not five, missing the 323 point run that is the whole point of this
+measurement. Hence that route and the `run.json` fetch in the row above: a check that cannot
+pass from the wrong tree is worth more than a check that merely passes.
+
+Three for three today, in the same shape: the pipe that reported grep's status, the ordering that
+read file mtimes, and a port answered by a stale process. Each one produced a plausible pass
+without measuring the thing it claimed to measure.
 
 ### The measurement that mattered, on the run before this one
 
