@@ -112,10 +112,20 @@ export class BudgetMeter {
     return Math.max(0, this.capUsd - this.spentUsd);
   }
 
-  /** Called after each response. Throws once the cap is reached. */
-  record(res: CompletionResponse): void {
-    this.promptTokens += res.promptTokens;
-    this.completionTokens += res.completionTokens;
+  /**
+   * Called after each response. Throws once the cap is reached.
+   *
+   * Usage figures come from the provider, so they are untrusted: a missing, negative, NaN or
+   * Infinity count would make `spentUsd` NaN, and `NaN >= cap` is false forever, which turns
+   * the hard stop off. Anything that is not a finite number >= 0 is replaced by a character
+   * estimate (4 chars per token) instead. `promptChars` is the size of what was sent.
+   */
+  record(res: CompletionResponse, promptChars = 0): void {
+    const ok = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n >= 0;
+    this.promptTokens += ok(res.promptTokens) ? res.promptTokens : Math.ceil(promptChars / 4);
+    this.completionTokens += ok(res.completionTokens)
+      ? res.completionTokens
+      : Math.ceil((res.text?.length ?? 0) / 4);
     this.calls += 1;
     if (this.spentUsd >= this.capUsd) {
       throw new BudgetExceeded(this.spentUsd, this.capUsd, this.calls);
@@ -250,6 +260,9 @@ export const OUTPUT_SCHEMA = `{
   "notionalUsd": "<integer micro-USD, or omit for HOLD>"
 }`;
 
+/** Per-item cap on fetched text put in the prompt. */
+export const MAX_EVIDENCE_CHARS = 2000;
+
 export function buildUserPrompt(
   asset: string,
   evidence: AnalystInput[],
@@ -270,9 +283,13 @@ export function buildUserPrompt(
   for (const e of evidence) {
     // Price payloads are large and the model does not need the raw JSON: it needs to know the
     // item exists, what kind it is, and its id, since the verifier recomputes from the bytes.
-    const body = e.kind === "PRICE" ? "<price snapshot>" : e.content;
+    //
+    // Fetched text is attacker-controlled. JSON.stringify makes it one quoted string, so a
+    // newline in a headline cannot fake a second `evidenceId=` line or a closing instruction,
+    // and the length cap bounds what one item can cost.
+    const body = e.kind === "PRICE" ? "<price snapshot>" : JSON.stringify(e.content.slice(0, MAX_EVIDENCE_CHARS));
     lines.push(`  evidenceId=${e.evidenceId} kind=${e.kind} source=${e.source}`);
-    lines.push(`    ${body}`);
+    lines.push(`    content=${body}`);
   }
   lines.push("");
   lines.push("Reply with JSON only, matching this schema:");
@@ -357,6 +374,9 @@ export function parseAnalystOutput(text: string, validIds: Set<string>): ParsedO
     typeof o.notionalUsd === "string" && /^(0|[1-9][0-9]*)$/.test(o.notionalUsd)
       ? o.notionalUsd
       : undefined;
+  // An open of zero is not a trade. Treat it as an unusable reply (a recorded parse failure)
+  // rather than clamping it up to the maximum or sending a zero-size open.
+  if (direction !== "HOLD" && notionalUsd === "0") return undefined;
 
   return {
     direction,
@@ -400,7 +420,7 @@ export async function llmAnalyst(
     maxOutputTokens: opts.maxOutputTokens ?? 500,
   });
   // Record before interpreting, so a reply that fails to parse still costs what it cost.
-  opts.meter.record(res);
+  opts.meter.record(res, SYSTEM_PROMPT.length + user.length);
 
   const validIds = new Set(evidence.map((e) => e.evidenceId));
   const parsed = parseAnalystOutput(res.text, validIds);
