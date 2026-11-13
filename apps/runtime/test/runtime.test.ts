@@ -32,6 +32,7 @@ import {
   type MonitorState,
 } from "../src/monitor.js";
 import { debateDesk, hierDesk } from "../src/aggregation.js";
+import { replayFetchedAt } from "../src/decision-points.js";
 import {
   BudgetExceeded,
   BudgetMeter,
@@ -892,5 +893,45 @@ describe("the budget meter", () => {
     m.record({ text: "garbage", promptTokens: 1000, completionTokens: 10 });
     expect(m.callCount).toBe(1);
     expect(m.spentUsd).toBeGreaterThan(0);
+  });
+});
+
+describe("replay clock", () => {
+  const HOUR = 3_600_000_000_000n;
+  const DAY = 24n * HOUR;
+  // A decision point five days into the archive, replayed now. Under the unshifted harness
+  // every item of this point was stale on arrival and the gate refused it R_NO_EVIDENCE.
+  const point = (1_794_000_000_000_000_000n).toString();
+  const anchor = BigInt(point) + 5n * DAY;
+
+  it("preserves an item's age relative to its own decision", () => {
+    const tenMinutes = 600_000_000_000n;
+    const shifted = replayFetchedAt((BigInt(point) - tenMinutes).toString(), point, anchor);
+    expect(anchor - BigInt(shifted)).toBe(tenMinutes);
+  });
+
+  it("brings a five day old snapshot inside a 24 hour freshness window", () => {
+    const shifted = BigInt(replayFetchedAt(point, point, anchor));
+    expect(anchor - BigInt(point)).toBeGreaterThan(DAY); // stale before the shift
+    expect(anchor - shifted).toBeLessThanOrEqual(DAY); // fresh after it
+  });
+
+  it("never dates an item into the future, which the contract treats as stale", () => {
+    // assertNoLookAhead guarantees fetchedAt <= point, so the shifted item lands at or before
+    // the anchor. A future timestamp would buy a fetcher a longer window by lying forward.
+    for (const age of [0n, 1n, HOUR, DAY]) {
+      const shifted = BigInt(replayFetchedAt((BigInt(point) - age).toString(), point, anchor));
+      expect(shifted).toBeLessThanOrEqual(anchor);
+    }
+  });
+
+  it("keeps the spacing between items, which the indicator recompute walks", () => {
+    const a = BigInt(replayFetchedAt((BigInt(point) - 2n * HOUR).toString(), point, anchor));
+    const b = BigInt(replayFetchedAt((BigInt(point) - HOUR).toString(), point, anchor));
+    expect(b - a).toBe(HOUR);
+  });
+
+  it("is the identity when the point is replayed at its own timestamp", () => {
+    expect(replayFetchedAt(point, point, BigInt(point))).toBe(point);
   });
 });

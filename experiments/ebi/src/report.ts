@@ -40,6 +40,13 @@ export interface RunMeta {
   pointsByGroupsAvailable?: Record<string, number>;
   /** Failed fetches per source id. Absent on runs before 10 Nov 2026. */
   failedFetchesBySource?: Record<string, number>;
+  /**
+   * How the replay handled evidence freshness. Absent on runs before 13 Nov 2026, and its
+   * absence is the thing to look for rather than a detail: those runs submitted archive
+   * timestamps against a real clock, so every point older than `evidenceMaxAgeSec` refused
+   * for a clock reason and their refusal counts measure the archive's age.
+   */
+  replayTimeShift?: string;
 }
 
 function sha256(s: string): string {
@@ -154,6 +161,13 @@ export function renderResults(
   L.push(`| clean decisions | ${report.cleanDecisions} |`);
   L.push(`| attack templates | ${meta.caseIds.length} cases, all written by us |`);
   L.push(`| evidence maxAgeSec | ${meta.evidenceMaxAgeSec} |`);
+  L.push(
+    `| evidence clock | ${
+      meta.replayTimeShift
+        ? "shifted per decision point, so each item's age relative to its own decision is what the contract judged"
+        : "**archive timestamps against a real clock**, so points older than maxAgeSec refused for a clock reason"
+    } |`,
+  );
   L.push(`| verifierCodeHash | \`${meta.verifierCodeHash}\` |`);
   L.push(`| data snapshot hash | \`${snapshotHash}\` |`);
   L.push("");
@@ -162,6 +176,19 @@ export function renderResults(
       "the value above, the verifier changed after this run and the results belong to the old one.",
   );
   L.push("");
+  if (!meta.replayTimeShift) {
+    // A run without the shift is readable but its refusal counts are mostly about the clock.
+    // Saying so inside the generated file matters more than saying it in a commit message,
+    // because the generated file is what gets read.
+    L.push(
+      "**This run predates the per-point evidence clock shift of 13 Nov 2026.** Its evidence " +
+        "carried archive timestamps while the contract judged freshness against wall-clock " +
+        "time, so every decision point more than `maxAgeSec` older than the run refused with " +
+        "`R_NO_EVIDENCE` whatever the evidence said. Read its refusal counts as a measurement " +
+        "of that, not of the gate.",
+    );
+    L.push("");
+  }
 
   // ---- the headline table ----
   L.push("## Attack success by desk");

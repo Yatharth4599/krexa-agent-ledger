@@ -31,6 +31,25 @@
  * uses for reasons unrelated to the gate. Sim policies use the schema maximum of 86400. Every
  * desk gets the identical window, freshness is not the mechanism under study, and the run
  * prints the distinction so no sim result is read as a live one.
+ *
+ * **That was not enough, and the 293 point run of 13 Nov 2026 proved it.** The schema caps
+ * `maxAgeSec` at 86400, so an archive spanning more than a day cannot be replayed under any
+ * legal policy without its older points being stale on arrival. In that run 112 of `ebi`'s 121
+ * refusals were `R_NO_EVIDENCE` at k=0, and every point before 12 Nov 06:17 refused, which is
+ * exactly 24 hours before the run started. The gate was reporting the distance between the
+ * archive and the wall clock. "0 of 30 attacks succeeded against `ebi`" was true of a desk that
+ * was refusing almost everything for a reason that has nothing to do with evidence.
+ *
+ * So each point is now replayed **in its own frame**: every evidence timestamp is shifted by one
+ * per-point offset that maps the decision point onto the moment its intent is submitted. The age
+ * of each item *relative to the decision* is preserved exactly as recorded, which is the
+ * quantity the policy is about, and the contract sees ages in seconds rather than days, as a
+ * live desk would. Nothing else moves: the archive keeps its real timestamps, `decisions.jsonl`
+ * logs the real point, and `run.json` records that the shift happened.
+ *
+ * The shift is why the archive's own clock cannot be used, and the cap is why a wider window
+ * cannot be. A reader who wants the unshifted behaviour has it in git: run
+ * `sim-2026-11-06154524-293p`, with the correction in docs/RESULTS.md.
  */
 
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -57,6 +76,7 @@ import {
   assertNoLookAhead,
   decisionPoints,
   marketViewAt,
+  replayFetchedAt,
   type DecisionPoint,
 } from "./decision-points.js";
 import {
@@ -273,6 +293,8 @@ export async function runSim(opts: SimOptions): Promise<SimResult> {
   log(`verifierCodeHash ${verifierCodeHash}`);
   log(`${cases.length} attack cases, injected every ${Math.max(1, Math.round(1 / attackRate))} points`);
   log(`evidence maxAgeSec ${SIM_MAX_AGE_SEC} (replay window, not a live desk's 900)`);
+  log("evidence timestamps shifted per point, so each item's age relative to its own decision");
+  log("  is what the contract judges. The archive keeps its real timestamps.");
   log("");
 
   const worker = await Worker.init();
@@ -386,6 +408,17 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
     const attack = attackAt(i, attackRate, cases);
     if (attack) attackedPoints += 1;
 
+    // ---- replay this point in its own frame ----
+    //
+    // See the freshness note in the file header. `replayed(t)` keeps the recorded age of an
+    // item relative to its decision point and anchors that point to now, so the contract judges
+    // the age the Analyst actually had to work with instead of the age of the archive. A
+    // snapshot can never land in the future: `assertNoLookAhead` has already established
+    // `fetchedAtNs <= point.ts` for every one of them, so `replayed(t) <= anchor <= now`.
+    const anchorNs = BigInt(Date.now()) * 1_000_000n;
+    const replayed = (fetchedAtNs: string): string =>
+      replayFetchedAt(fetchedAtNs, point.ts, anchorNs);
+
     // ---- clean evidence available at this point ----
     const cleanItems: SignedEvidenceItem[] = [];
     const rawBodies: Record<string, string> = {};
@@ -400,7 +433,7 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
           source: snap.source,
           sourceGroup: snap.sourceGroup,
           url: snap.url,
-          fetchedAtNs: snap.fetchedAtNs,
+          fetchedAtNs: replayed(snap.fetchedAtNs),
         }),
         seed,
         "NEUTRAL",
@@ -412,7 +445,10 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
         kind: "PRICE",
         source: snap.source,
         content: snap.body,
-        fetchedAtNs: snap.fetchedAtNs,
+        // The Analyst reads the same clock as the verifier. One shifted frame per point, or the
+        // two disagree about how old the evidence is and the signal is checked against a
+        // timeline its author never saw.
+        fetchedAtNs: replayed(snap.fetchedAtNs),
       });
     }
 
@@ -432,7 +468,9 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
             source,
             sourceGroup: `planted:${source}`,
             url: `https://${source}/SYNTHETIC-ATTACK`,
-            fetchedAtNs: point.ts,
+            // The injection is planted at the decision point itself, so in the shifted frame it
+            // is brand new. That is the attacker's best case and the one worth measuring.
+            fetchedAtNs: replayed(point.ts),
           }),
           seed,
           "NEUTRAL",
@@ -443,7 +481,7 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
           kind: "NEWS",
           source,
           content: text,
-          fetchedAtNs: point.ts,
+          fetchedAtNs: replayed(point.ts),
         });
       }
     }
@@ -708,6 +746,15 @@ async function execute(args: ExecuteArgs): Promise<SimResult> {
         startEquityUsd: START_EQUITY,
         baseNotionalUsd: BASE_NOTIONAL,
         evidenceMaxAgeSec: SIM_MAX_AGE_SEC,
+        // Without this a reader cannot tell this run from the ones before 13 Nov 2026, whose
+        // refusals were mostly the archive being older than maxAgeSec. See the file header.
+        replayTimeShift:
+          "per point: evidence timestamps are shifted by one offset that maps the decision " +
+          "point onto its submit time, so each item's age relative to its decision is " +
+          "preserved and the contract sees seconds rather than days. The archive keeps its " +
+          "real timestamps and decisions.jsonl logs the real point. Runs before 13 Nov 2026 " +
+          "submitted archive timestamps unshifted, so every point older than maxAgeSec was " +
+          "refused R_NO_EVIDENCE for a clock reason.",
         verifierCodeHash,
         firstPoint: points[0]!.iso,
         lastPoint: points[points.length - 1]!.iso,

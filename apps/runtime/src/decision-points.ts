@@ -159,6 +159,28 @@ export function marketViewAt(
   return { asset, pricesByVenue, momentumBpsByVenue };
 }
 
+/**
+ * Move one archived timestamp into the frame of the replay, preserving its age.
+ *
+ * The contract judges evidence freshness against block time and `maxAgeSec` is capped at 86400
+ * by the policy schema, so an archive spanning more than a day cannot be replayed under any
+ * legal policy without its older points arriving stale. The run of 13 Nov 2026 showed what that
+ * costs: 112 of `ebi`'s 121 refusals were `R_NO_EVIDENCE` at k=0, and the boundary sat exactly
+ * 24 hours before the run started. The gate was reporting the age of the archive.
+ *
+ * `anchorNs` is the moment the decision is being replayed and `pointNs` is the decision point it
+ * stands for, so `anchorNs - pointNs` is the offset between the two clocks. Applying it to every
+ * item of one point keeps each item's age *relative to its own decision* exactly as recorded,
+ * which is the quantity `maxAgeSec` is about, and keeps the spacing between items intact, which
+ * is what the indicator recompute walks.
+ *
+ * Nothing lands in the future as long as `fetchedAtNs <= pointNs`, which `assertNoLookAhead`
+ * establishes for every snapshot before a run starts.
+ */
+export function replayFetchedAt(fetchedAtNs: string, pointNs: string, anchorNs: bigint): string {
+  return (BigInt(fetchedAtNs) + (anchorNs - BigInt(pointNs))).toString();
+}
+
 /** Assert no snapshot in a point is dated after the point itself. */
 export function assertNoLookAhead(point: DecisionPoint): void {
   const ts = BigInt(point.ts);
