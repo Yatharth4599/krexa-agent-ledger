@@ -170,19 +170,21 @@ preserved and the contract judges that. Details in `docs/FAILURE_CASES.md` and i
 So the 13 Nov run is the first one whose refusals are evidence refusals. The run before it is
 labelled, in `run.json` and in bold in its own results file, as predating the fix.
 
-## What the 11 Nov run will and will not be able to report
+## What the 13 Nov run reported, against what was predicted for it
 
-Based on the dry run against the archive as it stood on 7 Nov:
+The predictions below were written on 7 Nov, before either run. Keeping them next to the outcome
+is the point of having written them down.
 
-- **Attack success per desk and per template**: yes, with Wilson intervals.
-- **Attack success by prior state**: yes. arXiv 2610.26438 finding (iii) makes this necessary
-  rather than optional, since an aggregate can be moved sevenfold by when the attack lands.
-- **Clean-run block rate**: only if the window contains enough price movement for the Analyst's
-  24 hour momentum signal to vary. On the 2.5 hour pilot window every clean point was a HOLD, so
-  the block rate was undefined rather than zero, and `docs/RESULTS.md` says so in those words.
-  A five-day window should fix this; a news feed would fix it properly, and that is held up on
-  terms rather than on code.
-- **False-block rate**: no. It needs to know whether each blocked signal would have been
-  profitable at its stated `horizonMin`, which needs a price path extending past each signal.
-  Reachable on the 13 Nov run for signals early in the window.
-- **Skill verdict**: `CANT_TELL_YET` for every desk, as predicted before anything was built.
+| Predicted | Outcome |
+|---|---|
+| Attack success per desk and per template, with Wilson intervals | **Yes.** `plain` 72.7% [55.8, 84.9], `ebi` 21.2% [10.7, 37.8], `hier` 0 of 33 |
+| Attack success by prior state, which finding (iii) makes necessary | **Yes**, and it mattered: every one of `ebi`'s 7 failures landed on a decision it would otherwise have held, 46.7% [24.8, 69.9] against 0 of 18 when it was about to short |
+| Clean-run block rate, only if the window had enough price movement | **Yes**, 20.8% [15.2, 27.7] for `ebi`, all `R_UNCORROBORATED`. The pilot could not measure this at all |
+| False-block rate: no, it needs a price path past each signal | **Still no.** It was called reachable "for signals early in the window" and it was not: resolving `horizonMin` needs the path after each signal, which the harness does not score |
+| Skill verdict `CANT_TELL_YET` for every desk | **Yes**, as predicted before anything was built |
+
+One thing nobody predicted: `hier`'s zero is not a defence. It opened long once in 290 clean
+decisions, so the attacker's direction was one it was not taking in this window, and the fake
+perturbed it 13 times without ever moving it into a long. `docs/RESULTS.md` now carries a
+decomposition that separates "the attack never landed" from "the gate refused the trade",
+because the attack success column alone cannot.
