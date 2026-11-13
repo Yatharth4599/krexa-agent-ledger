@@ -10,10 +10,16 @@ is checkable rather than hopeful: the harness builds evidence as
 filed under, and the unchecked path the bug opened was never reached by our own attacks. An
 11-point re-run under the fixed verifier `f1593918...` returned identical attacked and clean
 decision counts. The bug was exploitable by an adversary who controls that pairing, which is a
-case no run in this directory covers. The 670-point runs scheduled for 11 and 13 Nov use
-`f1593918...`.
+case no run in this directory covers. Every run after this pilot uses `f1593918...`.
 
-**This is a pilot, not a result** — but not for the reason first written here, and the
+**670 points never happened, and the first full run measured the wrong thing.** The archive lost
+about two thirds of its snapshots to machine sleep, so the scheduled runs are hundreds of points
+rather than 670 (`experiments/ebi/BUDGET.md` carries the correction). The 293 point run of
+13 Nov then turned out to be reporting the distance between the archive and the wall clock
+rather than the gate: see `docs/SCHEDULED_RUNS.md` and `docs/FAILURE_CASES.md`. Read
+`docs/RESULTS.md` for the current numbers, and read its provenance table first.
+
+**This is a pilot, not a result**, but not for the reason first written here, and the
 correction matters enough to keep in view.
 
 The first version of this file said the pilot could not be written up because ten points was

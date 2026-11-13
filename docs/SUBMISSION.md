@@ -65,7 +65,7 @@ Cannot be posted until the video exists. Needs YK's account.
 > REJECTED as R_UNCORROBORATED, and you can walk the hash chain to it.
 >
 > NEAR's part is the part I'd have had to invent otherwise: function-call keys mean the agent can
-> write its own record but cannot move funds, and the contract — not my server — enforces the
+> write its own record but cannot move funds, and the contract, not my server, enforces the
 > policy I committed before trading.
 >
 > It also blocks some real early signals. That cost is in docs/RESULTS.md, measured, next to the
@@ -95,7 +95,7 @@ past anyway.
 
 Record `pnpm demo` in one unbroken take at a readable terminal size. It asserts every beat and
 exits non-zero on failure, so a take that completes is itself the evidence. Do not cut between
-beats 7 and 8 — the whole point is that the two desks saw the same input.
+beats 7 and 8. The whole point is that the two desks saw the same input.
 
 Leave in the beat titled **"What this demo does not show"**. A judge who sees the limits on
 screen reads the rest more generously, and HACKATHON.md's screening rewards exactly this.
