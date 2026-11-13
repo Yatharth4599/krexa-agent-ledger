@@ -149,6 +149,27 @@ Worth knowing before choosing: this build does not verify NEAR AI Cloud response
 `aiSig.verified` stays `false` and the model id stays self-reported either way. Two models from
 two different providers would be stronger evidence than two from one, at the same cost.
 
+## What the recovered 11 Nov run actually reported, and why it had to be re-run
+
+It ran by hand on 13 Nov over 293 points and produced a complete `docs/RESULTS.md`. Then the
+numbers turned out to be about the clock.
+
+`ebi` refused 121 of its 158 intents, and 112 of those refusals were `R_NO_EVIDENCE` at k=0.
+Every decision point before 2026-11-12T06:17Z refused, which is `maxAgeSec` before the run
+started. The contract judges freshness against block time, the sandbox clock is real, and the
+policy schema caps `maxAgeSec` at 86400, so a six day archive cannot be replayed under any legal
+policy without its older points arriving stale. "0 of 30 attacks succeeded against `ebi`" was
+true of a desk that was refusing nearly everything for a reason that has nothing to do with
+evidence, and "73.5% of clean intents blocked" was measuring the same thing.
+
+The fix replays each point in its own frame rather than widening the window: one offset per point
+maps the decision onto its submit time, so every item's age relative to its own decision is
+preserved and the contract judges that. Details in `docs/FAILURE_CASES.md` and in the header of
+`apps/runtime/src/sim.ts`. The 293 point run stays in git as the record of the mistake.
+
+So the 13 Nov run is the first one whose refusals are evidence refusals. The run before it is
+labelled, in `run.json` and in bold in its own results file, as predating the fix.
+
 ## What the 11 Nov run will and will not be able to report
 
 Based on the dry run against the archive as it stood on 7 Nov:

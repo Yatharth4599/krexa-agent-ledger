@@ -98,6 +98,29 @@ very first call was refused with `NotEnoughAllowance`: 300 TGas reserves about 1
   desk, because the snapshots are genuinely old. The sim uses the schema maximum of 86400 and
   prints the distinction so no sim result reads as a live one.
 
+### A replay longer than maxAgeSec silently measures the clock instead of the gate
+
+**Hit for real, and it reached a published results file before anyone noticed.**
+
+- **Symptom**: a gated desk refuses almost everything with `R_NO_EVIDENCE` at k=0, and the
+  boundary between refusing and working sits exactly `maxAgeSec` before the moment the run
+  started. In the 293 point run of 13 Nov 2026, 112 of `ebi`'s 121 refusals were
+  `R_NO_EVIDENCE` and every point before 2026-11-12T06:17Z refused.
+- **Cause**: the policy schema caps `maxAgeSec` at 86400, so no legal policy can cover an
+  archive spanning more than a day. Submitting archived timestamps against a real clock makes
+  every older point stale on arrival, whatever its evidence said.
+- **Why the pilot could not catch it**: the 10 and 11 point pilots covered a window hours old,
+  inside the 86400 second cap. The failure needs a multi-day archive to appear at all, and the
+  numbers it produces look like a defence working perfectly.
+- **What to do**: replay each point in its own frame. `replayFetchedAt` in
+  `apps/runtime/src/decision-points.ts` shifts every evidence timestamp of a point by one offset
+  that maps the decision point onto its submit time, so each item's age relative to its own
+  decision is preserved and the contract judges that age rather than the archive's.
+  `run.json` records the shift and `docs/RESULTS.md` prints the evidence clock in its provenance
+  table, in bold if a run predates the fix.
+- **What not to do**: raise the cap. A live desk's window is the thing the cap protects, and
+  widening it to make a replay work would weaken the policy for the sake of the harness.
+
 ## Operator-side
 
 ### The owner key is offline with the kill switch engaged
