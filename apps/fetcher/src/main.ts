@@ -40,6 +40,7 @@ import {
   type Stance,
 } from "@krexa-ual/sdk";
 
+import { isContentHash, readCappedText } from "./net.js";
 import { activeSources, policyGroups, type Source } from "./sources.js";
 
 const REPO_ROOT = join(dirname(new URL(import.meta.url).pathname), "..", "..", "..");
@@ -80,8 +81,6 @@ function keygen(): void {
 }
 
 async function fetchRaw(source: Source): Promise<{ text: string; ok: boolean; error?: string }> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const res = await fetch(source.url, {
       method: source.method,
@@ -90,14 +89,15 @@ async function fetchRaw(source: Source): Promise<{ text: string; ok: boolean; er
           ? { "Content-Type": "application/json" }
           : { Accept: "application/json" },
       body: source.method === "POST" ? JSON.stringify(source.body) : undefined,
-      signal: controller.signal,
+      // the timeout covers reading the body too; a redirect is an error, not a hop to a host
+      // that is not in the source list
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      redirect: "error",
     });
-    const text = await res.text();
+    const text = await readCappedText(res);
     return res.ok ? { text, ok: true } : { text, ok: false, error: `HTTP ${res.status}` };
   } catch (e) {
     return { text: "", ok: false, error: String(e).slice(0, 200) };
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -225,6 +225,10 @@ function fromArchive(): void {
   for (const [sourceId, line] of [...latest.entries()].sort()) {
     const source = activeSources().find((s) => s.id === sourceId);
     if (!source) continue;
+    if (!isContentHash(line.contentHash)) {
+      console.log(`  gap   ${sourceId.padEnd(18)} index line has a malformed contentHash, refusing it`);
+      continue;
+    }
     const raw = join(ARCHIVE_DIR, "raw", `${line.contentHash}.json`);
     if (!existsSync(raw)) {
       console.log(`  gap   ${sourceId.padEnd(18)} raw body missing for ${line.contentHash}`);

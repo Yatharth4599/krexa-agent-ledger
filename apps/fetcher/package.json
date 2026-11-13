@@ -9,6 +9,7 @@
     "keygen": "tsx src/main.ts --keygen",
     "once": "tsx src/main.ts --once",
     "from-archive": "tsx src/main.ts --from-archive",
+    "test": "tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
