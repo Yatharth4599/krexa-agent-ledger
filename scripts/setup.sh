@@ -76,7 +76,7 @@ fi
 
 say ""
 say "js dependencies"
-pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+pnpm install --frozen-lockfile
 
 say ""
 say "contract build"
