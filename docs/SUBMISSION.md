@@ -26,7 +26,7 @@ Written so there is something to react to rather than a blank field at 20:00 on 
 Neither has been sent anywhere. Both still count as "needed from YK" below until he approves or
 rewrites them.
 
-### Idea text, draft (1,180 characters, limit 2,000)
+### Idea text, draft (1,853 characters, limit 2,000)
 
 > An LLM trading swarm will act on whatever text reaches it. Published work shows a single
 > fabricated headline moving a whole swarm of trading agents at once, and peer debate between
@@ -46,9 +46,13 @@ rewrites them.
 > operator's own server is not the judge of its own track record. One sub-account per agent makes
 > each actor traceable.
 >
-> Results are paper and the honest finding is mixed: the gate fails exactly where we predicted
-> before building it, against a fake planted across several declared sources. docs/RESULTS.md
-> reports that alongside what worked.
+> The result is paper, scripted rather than model-driven, and mixed. Over 323 archived decision
+> points the fabrication moved the plain desk and the gated desk into the same 24 long positions.
+> The gate refused 17 of them and 7 went through, mostly fakes planted across several declared
+> sources, which is the limit we wrote down before building anything. It cost 20.8% of clean-run
+> intents. A hierarchical baseline took none of the 33 attacks, but it also opened long once in
+> 290 clean decisions, so its zero is a desk that was not taking that trade rather than a defence
+> that held. docs/RESULTS.md reports all of it, limits first.
 
 ### X post, draft
 
@@ -119,13 +123,47 @@ None of these can be guessed, and a wrong value here is worse than a late one.
 ## Also blocked on YK, not submission fields
 
 - `NEARAI_API_KEY` and `UAL_MODELS` in `.env`, without which the model runs cannot happen. The
-  budget cap is already set.
+  budget cap is already set, at `LLM_DAILY_BUDGET_USD=5` rather than the approved 60, and an
+  agent does not raise a spend cap on its own.
 - The news-feed terms decision.
 - The 13 Nov pre-public review.
 
+## State at freeze, 13 Nov 2026
+
+Checked rather than assumed, so the last day is about the values above and not about the code.
+
+| | |
+|---|---|
+| Repo | public at `https://github.com/Yatharth4599/krexa-agent-ledger` |
+| `gitleaks detect` over the whole history | clean |
+| Private Krexa code in the repo | none. `reused/` holds only `.gitkeep`, and the README says so |
+| Testnet | `ual.krexa-ual.testnet` answering, desk `ebi` head at seq 32, policy `59f5db11...` |
+| Fresh clone, no `.env`, no keys | `setup.sh`, `pnpm test` (77 Rust, 15 sandbox, 335 TypeScript), `pnpm demo`, `pnpm web` all pass |
+| `docs/RESULTS.md` | generated from `sim-2026-11-06154524-323p`, the 13 Nov run, 323 points |
+| Evidence clock | shifted per decision point. The earlier 293 point run measured the archive's age instead and says so in its own file |
+
+## How the payload gets sent
+
+`pnpm submit` assembles and checks it. The values live in `submission.local.json`, which is
+gitignored because it carries YK's email and payout account:
+
+```bash
+cp submission.example.json submission.local.json
+$EDITOR submission.local.json      # the seven values from the checklist above
+pnpm submit                        # validates, prints the exact payload, sends nothing
+pnpm submit --send                 # the same, then asks for a typed yes and POSTs once
+```
+
+It reports every constraint failure at once rather than one per run: the length limits, the
+`size` enum where the spaces around the dash are part of the value, the 13 track ids, duplicate
+tracks, NEAR account rules, both URLs, and `consent` exactly true. It refuses a `nearAddress`
+ending in `.testnet`, because the prize is paid on mainnet and that is the one value here that
+cannot be fixed afterwards.
+
 ## Process, so it is not improvised later
 
-1. A `requestId` UUID is generated **once**.
+1. A `requestId` UUID is generated **once**, by `pnpm submit`, and written back so a retry after
+   a timeout stays one application rather than becoming two.
 2. The full payload is printed for YK to read.
 3. It is sent only after YK types yes.
 4. One submission only. Corrections go through https://nearhackathon.com/request-changes.
