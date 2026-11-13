@@ -28,6 +28,9 @@ the public repo into an empty directory, with `NEAR_SANDBOX_BIN_PATH`,
 `NEAR_SANDBOX_BINARY_PATH`, `NEARAI_API_KEY`, `FETCHER_SECRET_KEY` and `UAL_CONTRACT_ID` all
 unset. **Each exit status captured directly from the command, never through a pipe:**
 
+Commits after `425542c` are this file and the archive index the recorder keeps appending to.
+Neither is read by any command below, so re-running them at `HEAD` measures the same tree.
+
 | Command | Result |
 |---|---|
 | `./scripts/setup.sh` | **exit 0.** Installed deps, built the contract (316,817 byte wasm, sha256 `ecc7927f...`), fetched `neard 2.14.0`. |
