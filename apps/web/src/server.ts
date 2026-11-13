@@ -10,15 +10,34 @@
  * this process were switched off mid-session the explorer would keep working.
  */
 
-import { createReadStream, existsSync, readdirSync, statSync } from "node:fs";
-import { createServer } from "node:http";
+import { createReadStream, existsSync, readdirSync, realpathSync, statSync } from "node:fs";
+import { createServer, type Server, type ServerResponse } from "node:http";
 import { extname, join, normalize, resolve, sep } from "node:path";
+import { pipeline } from "node:stream";
+import { pathToFileURL } from "node:url";
 
 const REPO = resolve(join(import.meta.dirname, "..", "..", ".."));
 const PUBLIC = join(import.meta.dirname, "..", "public");
 const RESULTS = join(REPO, "experiments", "ebi", "results");
 const RESULTS_MD = join(REPO, "docs", "RESULTS.md");
 const PORT = Number(process.env.PORT ?? 3000);
+// Loopback by default: this is a local explorer, and the run files it serves are not meant
+// for the LAN. Set HOST=0.0.0.0 to opt in.
+const HOST = process.env.HOST ?? "127.0.0.1";
+
+/**
+ * The page's only network origins: itself, and the NEAR JSON-RPC nodes in the network
+ * `<select>` in index.html (testnet, local sandbox), plus mainnet. app.js fetches nothing else,
+ * and there are no inline scripts or styles.
+ */
+const SECURITY_HEADERS: Record<string, string> = {
+  "Content-Security-Policy":
+    "default-src 'self'; connect-src 'self' https://rpc.testnet.near.org " +
+    "https://rpc.mainnet.near.org http://localhost:3030 http://127.0.0.1:3030; " +
+    "frame-ancestors 'none'; object-src 'none'; base-uri 'none'",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "no-referrer",
+};
 
 const TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -50,76 +69,109 @@ function safeJoin(root: string, requestPath: string): string | undefined {
   return full;
 }
 
-function send(
-  res: import("node:http").ServerResponse,
-  code: number,
-  body: string,
-  type = "text/plain; charset=utf-8",
-): void {
+/**
+ * A regular file under `root`, or undefined. `safeJoin` is lexical, so a symlink inside the
+ * root that points at `/etc/passwd` passes it; the real path has to be checked as well. Any
+ * stat error (dangling symlink, EACCES, ELOOP) means "not found", not an uncaught throw.
+ */
+function resolveFile(root: string, requestPath: string): string | undefined {
+  const full = safeJoin(root, requestPath);
+  if (!full) return undefined;
+  try {
+    if (!statSync(full).isFile()) return undefined;
+    const real = realpathSync(full);
+    return real.startsWith(realpathSync(root) + sep) ? real : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function send(res: ServerResponse, code: number, body: string, type = "text/plain; charset=utf-8"): void {
   res.writeHead(code, { "Content-Type": type, "Cache-Control": "no-store" });
   res.end(body);
 }
 
-const server = createServer((req, res) => {
-  const url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
-  const path = url.pathname;
+function sendFile(res: ServerResponse, full: string, type: string): void {
+  res.writeHead(200, { "Content-Type": type, "Cache-Control": "no-store" });
+  // pipeline, not .pipe(): a read error (EACCES, file removed mid-read) must not surface as an
+  // uncaught 'error' event on the stream.
+  pipeline(createReadStream(full), res, () => {});
+}
 
-  if (req.method !== "GET") return send(res, 405, "read only");
+export interface Dirs {
+  publicDir: string;
+  resultsDir: string;
+  resultsMd: string;
+}
 
-  // --- list the local runs ---
-  if (path === "/data/runs") {
-    if (!existsSync(RESULTS)) return send(res, 200, "[]", TYPES[".json"]!);
-    const runs = readdirSync(RESULTS)
-      .filter((d) => statSync(join(RESULTS, d)).isDirectory())
-      .sort();
-    return send(res, 200, JSON.stringify(runs), TYPES[".json"]!);
-  }
+export function createApp(dirs: Dirs): Server {
+  return createServer((req, res) => {
+    for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
 
-  // --- a file inside a run ---
-  if (path.startsWith("/data/runs/")) {
-    const full = safeJoin(RESULTS, path.slice("/data/runs/".length));
-    if (!full || !existsSync(full) || statSync(full).isDirectory()) {
-      return send(res, 404, "not found");
+    let path: string;
+    try {
+      path = new URL(req.url ?? "/", "http://localhost").pathname;
+    } catch {
+      return send(res, 400, "bad request");
     }
-    res.writeHead(200, {
-      "Content-Type": TYPES[extname(full)] ?? "application/octet-stream",
-      "Cache-Control": "no-store",
-    });
-    return void createReadStream(full).pipe(res);
-  }
 
-  // --- the generated results document ---
-  if (path === "/data/results-md") {
-    if (!existsSync(RESULTS_MD)) return send(res, 404, "docs/RESULTS.md not generated yet");
-    res.writeHead(200, { "Content-Type": TYPES[".md"]!, "Cache-Control": "no-store" });
-    return void createReadStream(RESULTS_MD).pipe(res);
-  }
+    if (req.method !== "GET") return send(res, 405, "read only");
 
-  // --- static assets ---
-  const rel = path === "/" ? "index.html" : path.slice(1);
-  const full = safeJoin(PUBLIC, rel);
-  if (!full || !existsSync(full) || statSync(full).isDirectory()) {
-    return send(res, 404, "not found");
-  }
-  res.writeHead(200, {
-    "Content-Type": TYPES[extname(full)] ?? "application/octet-stream",
-    "Cache-Control": "no-store",
+    // --- list the local runs ---
+    if (path === "/data/runs") {
+      if (!existsSync(dirs.resultsDir)) return send(res, 200, "[]", TYPES[".json"]!);
+      const runs = readdirSync(dirs.resultsDir)
+        .filter((d) => {
+          try {
+            const p = join(dirs.resultsDir, d);
+            return statSync(p).isDirectory() && realpathSync(p).startsWith(realpathSync(dirs.resultsDir) + sep);
+          } catch {
+            return false; // dangling symlink
+          }
+        })
+        .sort();
+      return send(res, 200, JSON.stringify(runs), TYPES[".json"]!);
+    }
+
+    // --- a file inside a run ---
+    if (path.startsWith("/data/runs/")) {
+      const full = resolveFile(dirs.resultsDir, path.slice("/data/runs/".length));
+      if (!full) return send(res, 404, "not found");
+      return sendFile(res, full, TYPES[extname(full)] ?? "application/octet-stream");
+    }
+
+    // --- the generated results document ---
+    if (path === "/data/results-md") {
+      try {
+        if (!statSync(dirs.resultsMd).isFile()) throw new Error("not a file");
+      } catch {
+        return send(res, 404, "docs/RESULTS.md not generated yet");
+      }
+      return sendFile(res, dirs.resultsMd, TYPES[".md"]!);
+    }
+
+    // --- static assets ---
+    const full = resolveFile(dirs.publicDir, path === "/" ? "index.html" : path.slice(1));
+    if (!full) return send(res, 404, "not found");
+    sendFile(res, full, TYPES[extname(full)] ?? "application/octet-stream");
   });
-  createReadStream(full).pipe(res);
-});
+}
 
-server.listen(PORT, () => {
-  console.log(`UAL web on http://localhost:${PORT}`);
-  console.log("");
-  console.log("  Explorer          recomputes every receipt hash in the browser");
-  console.log("  Verified board    reads desks from the chain via view calls");
-  console.log("  EBI results       renders the generated docs/RESULTS.md");
-  console.log("  Attack replay     one injected headline, every desk's decision");
-  console.log("");
-  console.log("This server is static. It holds no state, signs nothing and cannot write.");
-  console.log("Chain data is fetched by your browser from a public NEAR node, not from here.");
-  if (!existsSync(RESULTS_MD)) {
+// Only listen when run as a script, so the test can start its own instance on port 0.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  createApp({ publicDir: PUBLIC, resultsDir: RESULTS, resultsMd: RESULTS_MD }).listen(PORT, HOST, () => {
+    console.log(`UAL web on http://${HOST}:${PORT}`);
     console.log("");
-    console.log("note: docs/RESULTS.md does not exist yet. Generate it with: pnpm ebi:report");
-  }
-});
+    console.log("  Explorer          recomputes every receipt hash in the browser");
+    console.log("  Verified board    reads desks from the chain via view calls");
+    console.log("  EBI results       renders the generated docs/RESULTS.md");
+    console.log("  Attack replay     one injected headline, every desk's decision");
+    console.log("");
+    console.log("This server is static. It holds no state, signs nothing and cannot write.");
+    console.log("Chain data is fetched by your browser from a public NEAR node, not from here.");
+    if (!existsSync(RESULTS_MD)) {
+      console.log("");
+      console.log("note: docs/RESULTS.md does not exist yet. Generate it with: pnpm ebi:report");
+    }
+  });
+}
