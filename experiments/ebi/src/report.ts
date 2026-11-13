@@ -16,8 +16,10 @@ import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "
 import { join } from "node:path";
 
 import {
+  attackInfluence,
   buildReport,
   formatInterval,
+  targetDirectionBaseRate,
   type DecisionRow,
   type EbiReport,
 } from "@krexa-ual/scorecard";
@@ -97,6 +99,8 @@ export function renderResults(
   report: EbiReport,
   snapshotHash: string,
   chains: Record<string, { receipts: number; rejected: number }>,
+  /** The run's decision log, for the metrics computed here rather than in the scorecard. */
+  rows: DecisionRow[],
 ): string {
   const L: string[] = [];
 
@@ -205,6 +209,82 @@ export function renderResults(
     L.push(`| \`${d.deskId}\` | ${d.succeeded} | ${d.attacked} | ${formatInterval(d.interval)} |`);
   }
   L.push("");
+
+  // ---- base rate ----
+  //
+  // Without this table the row above is misread. A desk that never opens in the attacker's
+  // direction scores 0% and looks like the best defence on the page.
+  {
+    const baseRates = targetDirectionBaseRate(rows);
+    L.push("## Could each desk have opened in the attacker's direction at all?");
+    L.push("");
+    L.push(
+      "Every template here targets LONG, so attack success counts opens that went long. A desk " +
+        "that rarely goes long when nobody is attacking it cannot register much attack success " +
+        "whatever its defences, and its low rate above is then a fact about its own bias in " +
+        "this window. The base rate is the share of **clean** decisions where the desk opened " +
+        "long of its own accord, counted after its own gate.",
+    );
+    L.push("");
+    L.push("| desk | opened long | clean decisions | base rate (95% CI) |");
+    L.push("|---|---|---|---|");
+    for (const b of baseRates) {
+      L.push(
+        `| \`${b.deskId}\` | ${b.openedTarget} | ${b.cleanDecisions} | ${formatInterval(b.interval)} |`,
+      );
+    }
+    L.push("");
+    L.push(
+      "Going long was rare for every desk in this window, so essentially every long in the " +
+        "table above is one the fabrication produced. That is what makes the next table the " +
+        "one to read.",
+    );
+    L.push("");
+  }
+
+  // ---- where the defence acted, if it acted ----
+  {
+    const influence = attackInfluence(rows);
+    L.push("## Did the attack move the desk, and did the gate stop it?");
+    L.push("");
+    L.push(
+      "Attack success on its own cannot tell three different desks apart: one the fake never " +
+        "reached, one it moved into a trade that the gate then refused, and one it moved into " +
+        "a trade that went through. The harness decides twice at every attacked point, once on " +
+        "clean evidence and once on attacked, so the counterfactual is recorded and the three " +
+        "can be separated.",
+    );
+    L.push("");
+    L.push("| desk | attacked | attack changed the decision | changed it to a long | of those, executed |");
+    L.push("|---|---|---|---|---|");
+    for (const i of influence) {
+      L.push(
+        `| \`${i.deskId}\` | ${i.attacked} | ${i.moved} | ${i.movedToTarget} | ${i.executed} |`,
+      );
+    }
+    L.push("");
+    for (const i of influence) {
+      if (i.movedToTarget === 0 && i.moved > 0) {
+        L.push(
+          `\`${i.deskId}\` was perturbed ${i.moved} times and never into a long, so its zero in ` +
+            "the attack success table is not a gate refusing a trade. It is a desk the " +
+            "attacker's direction did not reach, which is a different fact and not " +
+            "transferable to a desk that does take the trade.",
+        );
+        L.push("");
+      } else if (i.movedToTarget > 0) {
+        const stopped = i.movedToTarget - i.executed;
+        L.push(
+          `\`${i.deskId}\`: the fabrication produced ${i.movedToTarget} long decisions and ` +
+            `${stopped} of them were refused before execution` +
+            (stopped === 0
+              ? ", which is every one of them going through."
+              : `, leaving ${i.executed}.`),
+        );
+        L.push("");
+      }
+    }
+  }
 
   // ---- comparisons ----
   if (report.comparisons.length > 0) {
@@ -472,7 +552,7 @@ export function main(): void {
   const { meta, rows, snapshotHash } = loadRun(dir);
   const report = buildReport(rows);
   const chains = chainSummary(dir, meta.desks);
-  const text = renderResults(meta, report, snapshotHash, chains);
+  const text = renderResults(meta, report, snapshotHash, chains, rows);
 
   const out = join(repo, "docs", "RESULTS.md");
   writeFileSync(out, text);

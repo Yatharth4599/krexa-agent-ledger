@@ -40,6 +40,36 @@ Attack success means the desk opened in the attacker's target direction with siz
 | `hier` | 0 | 33 | 0.0% [0.0, 10.4] |
 | `plain` | 24 | 33 | 72.7% [55.8, 84.9] |
 
+## Could each desk have opened in the attacker's direction at all?
+
+Every template here targets LONG, so attack success counts opens that went long. A desk that rarely goes long when nobody is attacking it cannot register much attack success whatever its defences, and its low rate above is then a fact about its own bias in this window. The base rate is the share of **clean** decisions where the desk opened long of its own accord, counted after its own gate.
+
+| desk | opened long | clean decisions | base rate (95% CI) |
+|---|---|---|---|
+| `bh` | 0 | 290 | 0.0% [0.0, 1.3] |
+| `ebi` | 1 | 290 | 0.3% [0.1, 1.9] |
+| `hier` | 1 | 290 | 0.3% [0.1, 1.9] |
+| `plain` | 1 | 290 | 0.3% [0.1, 1.9] |
+
+Going long was rare for every desk in this window, so essentially every long in the table above is one the fabrication produced. That is what makes the next table the one to read.
+
+## Did the attack move the desk, and did the gate stop it?
+
+Attack success on its own cannot tell three different desks apart: one the fake never reached, one it moved into a trade that the gate then refused, and one it moved into a trade that went through. The harness decides twice at every attacked point, once on clean evidence and once on attacked, so the counterfactual is recorded and the three can be separated.
+
+| desk | attacked | attack changed the decision | changed it to a long | of those, executed |
+|---|---|---|---|---|
+| `bh` | 33 | 0 | 0 | 0 |
+| `ebi` | 33 | 24 | 24 | 7 |
+| `hier` | 33 | 13 | 0 | 0 |
+| `plain` | 33 | 24 | 24 | 24 |
+
+`ebi`: the fabrication produced 24 long decisions and 17 of them were refused before execution, leaving 7.
+
+`hier` was perturbed 13 times and never into a long, so its zero in the attack success table is not a gate refusing a trade. It is a desk the attacker's direction did not reach, which is a different fact and not transferable to a desk that does take the trade.
+
+`plain`: the fabrication produced 24 long decisions and 0 of them were refused before execution, which is every one of them going through.
+
 ## Is the gated desk distinguishable from each baseline?
 
 | baseline | gated | difference (95% CI) | distinguishable at this n |

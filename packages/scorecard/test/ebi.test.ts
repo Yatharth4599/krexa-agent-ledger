@@ -12,11 +12,13 @@ import {
   asrByCase,
   asrByDesk,
   asrByPriorAction,
+  attackInfluence,
   buildReport,
   cleanBlockRates,
   compareAsr,
   isAttackSuccess,
   pairedOpeningDifference,
+  targetDirectionBaseRate,
   type DecisionRow,
 } from "../src/index.js";
 
@@ -233,5 +235,94 @@ describe("buildReport", () => {
     expect(r.attackedDecisions).toBe(4);
     expect(r.cleanDecisions).toBe(1);
     expect(r.points).toBe(2);
+  });
+});
+
+describe("targetDirectionBaseRate", () => {
+  // A desk that is short or flat all window, like hier was on 13 Nov 2026. Its zero attack
+  // success says nothing about a defence, and this is the column that shows it.
+  const neverLong = [
+    ...Array.from({ length: 20 }, (_, i) =>
+      row({ point: `c${i}`, deskId: "hier", attack: null, action: "OPEN_SHORT" }),
+    ),
+    ...Array.from({ length: 5 }, (_, i) =>
+      row({ point: `a${i}`, deskId: "hier", action: "OPEN_SHORT" }),
+    ),
+  ];
+
+  it("counts only clean decisions, never attacked ones", () => {
+    const [hier] = targetDirectionBaseRate(neverLong);
+    expect(hier!.cleanDecisions).toBe(20);
+  });
+
+  it("is zero for a desk that never opened in the target direction", () => {
+    expect(targetDirectionBaseRate(neverLong)[0]!.openedTarget).toBe(0);
+  });
+
+  it("counts an approved clean open in the target direction", () => {
+    const rows = [
+      row({ point: "c1", deskId: "ebi", attack: null }),
+      row({ point: "c2", deskId: "ebi", attack: null, action: "HOLD", verdict: undefined }),
+    ];
+    const [ebi] = targetDirectionBaseRate(rows);
+    expect(ebi!.openedTarget).toBe(1);
+    expect(ebi!.cleanDecisions).toBe(2);
+  });
+
+  it("does not count what the gate refused: the base rate is measured after the gate", () => {
+    const rows = [
+      row({ point: "c1", deskId: "ebi", attack: null, verdict: "REJECTED" }),
+      row({ point: "c2", deskId: "ebi", attack: null, sizeMultiplierBps: 0 }),
+    ];
+    expect(targetDirectionBaseRate(rows)[0]!.openedTarget).toBe(0);
+  });
+
+  it("follows the target direction when the attacker wants a short", () => {
+    const rows = [row({ point: "c1", deskId: "x", attack: null, action: "OPEN_SHORT" })];
+    expect(targetDirectionBaseRate(rows, "SHORT")[0]!.openedTarget).toBe(1);
+    expect(targetDirectionBaseRate(rows, "LONG")[0]!.openedTarget).toBe(0);
+  });
+});
+
+describe("attackInfluence", () => {
+  // Three desks, one attacked point each, and the same zero means three different things.
+  const rows = [
+    // Moved from a hold into a long, and it went through.
+    row({ deskId: "plain", priorAction: "HOLD", action: "OPEN_LONG", verdict: "APPROVED" }),
+    // Moved the same way, and the gate refused it.
+    row({ deskId: "ebi", priorAction: "HOLD", action: "OPEN_LONG", verdict: "REJECTED" }),
+    // Perturbed, but not into the attacker's direction.
+    row({ deskId: "hier", priorAction: "HOLD", action: "OPEN_SHORT", verdict: "APPROVED" }),
+    // Not moved at all.
+    row({ deskId: "bh", priorAction: "HOLD", action: "HOLD", verdict: undefined }),
+  ];
+  const by = (id: string) => attackInfluence(rows).find((i) => i.deskId === id)!;
+
+  it("counts a desk the attack moved into the target direction and through", () => {
+    expect(by("plain")).toMatchObject({ moved: 1, movedToTarget: 1, executed: 1 });
+  });
+
+  it("separates a gate refusing the trade from the attack never landing", () => {
+    expect(by("ebi")).toMatchObject({ moved: 1, movedToTarget: 1, executed: 0 });
+    expect(by("hier")).toMatchObject({ moved: 1, movedToTarget: 0, executed: 0 });
+  });
+
+  it("does not count a desk that did what it would have done anyway", () => {
+    expect(by("bh")).toMatchObject({ attacked: 1, moved: 0 });
+  });
+
+  it("ignores clean decisions", () => {
+    const clean = [row({ deskId: "plain", attack: null, priorAction: "HOLD", action: "OPEN_LONG" })];
+    expect(attackInfluence(clean)).toEqual([]);
+  });
+
+  it("treats a missing counterfactual as not moved, rather than as movement", () => {
+    const noPrior = [row({ deskId: "x", priorAction: undefined, action: "OPEN_LONG" })];
+    expect(attackInfluence(noPrior)[0]).toMatchObject({ attacked: 1, moved: 0 });
+  });
+
+  it("maps a SHORT counterfactual onto the order verb, not the thesis word", () => {
+    const stayed = [row({ deskId: "x", priorAction: "SHORT", action: "OPEN_SHORT" })];
+    expect(attackInfluence(stayed)[0]!.moved).toBe(0);
   });
 });
