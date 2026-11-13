@@ -12,7 +12,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import {
@@ -388,12 +388,46 @@ export function renderResults(
   return L.join("\n");
 }
 
+/**
+ * The most recently *finished* run, not the last directory name in sort order.
+ *
+ * Two bugs lived here and both bit on 13 Nov 2026, killing the scheduled run's report.
+ *
+ * A run id is `sim-<first archived point>-<n>p`, so sorting by name ranks runs by when the
+ * **archive window** starts, not by when the run happened. A short run over a later slice of
+ * the archive therefore outranks a long run recorded afterwards: `sim-2026-11-10120911-14p`
+ * beat `sim-2026-11-06154524-293p` despite being three days older and 279 points smaller.
+ *
+ * And an interrupted run leaves a directory holding only empty `artifacts/` and `records/`.
+ * `loadRun` quite correctly throws on one, but nothing had filtered it out first, so an
+ * abandoned attempt could take down a report on a run that completed perfectly.
+ *
+ * So: consider only directories that can actually be loaded, and rank them by when `run.json`
+ * was written, which is the one timestamp that means "this run finished".
+ */
 function latestRun(resultsDir: string): string | undefined {
   if (!existsSync(resultsDir)) return undefined;
-  const runs = readdirSync(resultsDir)
-    .filter((d) => d.startsWith("sim-") || d.startsWith("paper-"))
-    .sort();
-  return runs[runs.length - 1];
+  const all = readdirSync(resultsDir).filter(
+    (d) => d.startsWith("sim-") || d.startsWith("paper-"),
+  );
+  const complete = all.filter(
+    (d) =>
+      existsSync(join(resultsDir, d, "run.json")) &&
+      existsSync(join(resultsDir, d, "decisions.jsonl")),
+  );
+  const skipped = all.filter((d) => !complete.includes(d));
+  if (skipped.length > 0) {
+    // Loud, because an abandoned run directory means a run died somewhere and a silently
+    // ignored one is how that goes unnoticed a second time.
+    console.log(
+      `  note: ignored ${skipped.length} incomplete run director${skipped.length === 1 ? "y" : "ies"} ` +
+        `(no run.json/decisions.jsonl): ${skipped.join(", ")}`,
+    );
+  }
+  return complete
+    .map((d) => ({ d, at: statSync(join(resultsDir, d, "run.json")).mtimeMs }))
+    .sort((a, b) => a.at - b.at)
+    .at(-1)?.d;
 }
 
 export function main(): void {
