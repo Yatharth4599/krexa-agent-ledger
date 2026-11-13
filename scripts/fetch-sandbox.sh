@@ -51,6 +51,18 @@ case "$(uname -m)" in
   *) echo "unsupported arch $(uname -m); set NEAR_SANDBOX_BIN_PATH yourself" >&2; exit 1 ;;
 esac
 
+# SHA-256 of each archive, pinned so a swapped download is refused before it is unpacked
+# or run. Taken from the build.nearprotocol.com objects for 2.14.0 on 13 Nov 2026.
+# Another VERSION has no pin: set NEAR_SANDBOX_SHA256 to its hash, or the script stops.
+case "${VERSION}/${OS}-${ARCH}" in
+  2.14.0/Darwin-arm64)  PIN="ea53448ef97540c012e5c3d967c74d78292b0465a98cf7027811a936718fe232" ;;
+  2.14.0/Darwin-x86_64) PIN="b67b7bd48f18dc4dec96ca91332788670fd2e6b42a999323dfa7f62beb21ee69" ;;
+  2.14.0/Linux-x86_64)  PIN="a0ba004218b218bd74351795e7ce2eda4a2b6af5cd3e252bd5e8bfe3c8f2e691" ;;
+  *) PIN="" ;;
+esac
+PIN="${NEAR_SANDBOX_SHA256:-$PIN}"
+[ -n "$PIN" ] || { echo "no pinned sha256 for ${VERSION} ${OS}-${ARCH}; set NEAR_SANDBOX_SHA256" >&2; exit 1; }
+
 URL="https://s3-us-west-1.amazonaws.com/build.nearprotocol.com/nearcore/${OS}-${ARCH}/${VERSION}/near-sandbox.tar.gz"
 
 echo "fetching neard ${VERSION} for ${OS}-${ARCH}" >&2
@@ -61,6 +73,14 @@ trap 'rm -rf "$TMP"' EXIT
 if ! curl -fsSL "$URL" -o "$TMP/near-sandbox.tar.gz"; then
   echo "download failed: $URL" >&2
   echo "Set NEAR_SANDBOX_BIN_PATH to a neard >= 2.14.0 binary and re-run." >&2
+  exit 1
+fi
+
+GOT=$( (command -v sha256sum >/dev/null && sha256sum "$TMP/near-sandbox.tar.gz" || shasum -a 256 "$TMP/near-sandbox.tar.gz") | cut -d' ' -f1)
+if [ "$GOT" != "$PIN" ]; then
+  echo "checksum mismatch for $URL" >&2
+  echo "  expected $PIN" >&2
+  echo "  got      $GOT" >&2
   exit 1
 fi
 

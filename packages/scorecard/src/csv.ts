@@ -37,6 +37,23 @@ export interface DailyRow {
   headHash: string;
 }
 
+/** Decimal u64, nothing else: no sign, hex, exponent, whitespace or leading zero. */
+const U64_RE = /^(0|[1-9][0-9]{0,19})$/;
+const INT_RE = /^-?\d+$/;
+
+/**
+ * One CSV cell. Always quoted when it holds a delimiter, quote or newline; and when `text` is
+ * set (the value came from outside this file) a leading `= + - @ tab CR` is defused with a
+ * `'` so a spreadsheet does not run it as a formula. Numbers we format ourselves skip that,
+ * or every negative return would gain a stray apostrophe.
+ */
+function cell(v: string | number, text = false): string {
+  let s = String(v);
+  if (text && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+const textCell = (v: string | number) => cell(v, true);
+
 function microUsdToDecimal(micro: string): string {
   const neg = micro.startsWith("-");
   const digits = (neg ? micro.slice(1) : micro).padStart(7, "0");
@@ -60,6 +77,18 @@ function utcDate(tsNs: string): string {
 export function dailyRows(receipts: Receipt[], mode: string): DailyRow[] {
   const inMode = receipts.filter((r) => r.mode === mode);
   if (inMode.length === 0) return [];
+  // Refuse bad numbers loudly. A NaN equity would otherwise slide through Math.max and hide a
+  // real drawdown, and an out-of-range ts would throw an unrelated RangeError from Date.
+  for (const r of inMode) {
+    if (!U64_RE.test(String(r.ts))) throw new Error(`receipt ${r.seq}: ts "${String(r.ts)}" is not a u64 decimal`);
+    if (r.kind === "MARK" && r.equityUsd != null && !INT_RE.test(String(r.equityUsd))) {
+      throw new Error(`receipt ${r.seq}: equityUsd "${String(r.equityUsd)}" is not an integer`);
+    }
+    if (r.kind === "CONTROL" && (r.control as { action?: string } | null)?.action === "flow") {
+      const d = (r.control as { detail?: unknown }).detail;
+      if (!INT_RE.test(String(d))) throw new Error(`receipt ${r.seq}: flow detail "${String(d)}" is not an integer`);
+    }
+  }
 
   const byDay = new Map<string, Receipt[]>();
   for (const r of inMode) {
@@ -146,7 +175,7 @@ export function dailyCsv(receipts: Receipt[], mode: string): string {
   const body = rows.map((r) =>
     [
       r.date,
-      r.mode,
+      textCell(r.mode),
       r.equityUsd,
       r.netFlowUsd,
       r.dailyReturn,
@@ -157,7 +186,7 @@ export function dailyCsv(receipts: Receipt[], mode: string): string {
       r.rejected,
       r.fillsVerifiedPct,
       r.headSeq,
-      r.headHash,
+      textCell(r.headHash),
     ].join(","),
   );
   return `${DAILY_HEADER}\n${body.join("\n")}${body.length ? "\n" : ""}`;
@@ -188,11 +217,16 @@ const REFERENCE_BAR = [
 export function summaryCsv(receipts: Receipt[], opts: SummaryOptions): string {
   const rows = dailyRows(receipts, opts.mode);
   const days = rows.length;
-  const enough = days >= 30;
+  // Elapsed UTC days, first mark to last inclusive. Gap days count: 30 marks spread over a
+  // year are a year of exposure, and annualising them as 30 days would inflate the figure.
+  const span = days
+    ? Math.round((Date.parse(rows[days - 1]!.date) - Date.parse(rows[0]!.date)) / 86_400_000) + 1
+    : 0;
+  const enough = span >= 30;
 
   const cumulative = rows.length ? Number(rows[rows.length - 1]!.navIndex) - 1 : 0;
   const maxDrawdown = rows.reduce((m, r) => Math.max(m, Number(r.drawdown)), 0);
-  const annualized = enough ? (1 + cumulative) ** (365 / days) - 1 : null;
+  const annualized = enough ? (1 + cumulative) ** (365 / span) - 1 : null;
   const rtd = enough && maxDrawdown > 0 ? (annualized as number) / maxDrawdown : null;
 
   const intents = receipts.filter((r) => r.kind === "INTENT" && r.mode === opts.mode);
@@ -201,12 +235,14 @@ export function summaryCsv(receipts: Receipt[], opts: SummaryOptions): string {
   const out: string[] = [];
   out.push("field,value,reference_threshold,met");
   const line = (field: string, value: string, threshold = "", met = "") =>
+    // `value` is already escaped by the caller where it came from outside.
     out.push(`${field},${value},${threshold},${met}`);
 
-  line("desk_id", opts.deskId);
-  line("mode", opts.mode);
-  line("contract_id", opts.contractId);
+  line("desk_id", textCell(opts.deskId));
+  line("mode", textCell(opts.mode));
+  line("contract_id", textCell(opts.contractId));
   line("days_with_a_mark", String(days));
+  line("days_spanned", String(span));
   line("cumulative_return", rows.length ? cumulative.toFixed(6) : "");
   line(
     "annualized_return",
@@ -235,8 +271,8 @@ export function summaryCsv(receipts: Receipt[], opts: SummaryOptions): string {
   line("skill_verdict", "CANT_TELL_YET");
   line("days_needed_for_significance", "not reachable at the current rate");
   line("receipts", String(receipts.filter((r) => r.mode === opts.mode).length));
-  line("data_snapshot_sha256", opts.dataSnapshotHash);
-  line("generated_at", opts.generatedAt);
+  line("data_snapshot_sha256", textCell(opts.dataSnapshotHash));
+  line("generated_at", textCell(opts.generatedAt));
   line("attested_evidence", "false");
   line("audited", "false");
 

@@ -156,14 +156,38 @@ export function signEvidenceItem(
  */
 export function verifyEvidenceItem(signed: SignedEvidenceItem): boolean {
   try {
+    const { item } = signed;
+    // Shape first, so the signed bytes are exactly what the contract's six-field struct would
+    // produce. An extra key would verify here and be dropped by serde there.
+    if (item === null || typeof item !== "object") return false;
+    if (Object.keys(item).sort().join(",") !== "contentHash,fetchedAt,kind,source,sourceGroup,url") {
+      return false;
+    }
+    if (!isHex64(item.contentHash)) return false;
+    if (!EVIDENCE_KINDS.includes(item.kind)) return false;
+    for (const f of ["fetchedAt", "source", "sourceGroup", "url"] as const) {
+      if (typeof item[f] !== "string") return false;
+    }
+    // Cap before decoding: base58 decode is quadratic. A valid signature is 86-88 chars and a
+    // valid key about 44 (plus the "ed25519:" prefix).
+    if (typeof signed.signature !== "string" || signed.signature.length > MAX_SIGNATURE_CHARS) {
+      return false;
+    }
+    if (typeof signed.fetcherKey !== "string" || signed.fetcherKey.length > MAX_KEY_CHARS) {
+      return false;
+    }
     const pub = publicKeyObjectFromNearKey(signed.fetcherKey);
     const sig = base58Decode(signed.signature);
     if (sig.length !== 64) return false;
-    return verify(null, signingBytes(signed.item), pub, Buffer.from(sig));
+    return verify(null, signingBytes(item), pub, Buffer.from(sig));
   } catch {
     return false;
   }
 }
+
+const EVIDENCE_KINDS: readonly string[] = ["NEWS", "PRICE", "MARKET", "ONCHAIN"];
+const MAX_SIGNATURE_CHARS = 90;
+const MAX_KEY_CHARS = "ed25519:".length + 50;
 
 /** sha256 of raw fetched content, which is the item's id. */
 export function contentHashOf(raw: string | Uint8Array): string {

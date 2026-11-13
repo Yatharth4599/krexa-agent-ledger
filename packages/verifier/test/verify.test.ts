@@ -14,6 +14,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildEvidencePayload,
   generateFetcherKey,
+  sha256Hex,
   signEvidenceItem,
   type SignedEvidenceItem,
 } from "@krexa-ual/sdk";
@@ -36,6 +37,7 @@ const ARCHIVE = join(REPO, "data", "archive");
 
 const key = generateFetcherKey();
 const SEED = Buffer.from(key.secretKeyHex, "hex");
+const FETCHERS = [key.publicKey];
 
 const T0 = 1_762_440_000_000_000_000n;
 const NOW = (T0 + 60_000_000_000n).toString();
@@ -291,7 +293,7 @@ describe("verify", () => {
 
   it("a single news source gives k=1 and a zero size", () => {
     const news = sign("BTC ETF approval reported", "newswire-a.example", "NEWS");
-    const r = verify({
+    const r = verify({ fetchers: FETCHERS,
       signal: baseSignal({
         citations: [news.item.contentHash],
         declaredStance: { [news.item.contentHash]: "SUPPORT" },
@@ -309,7 +311,7 @@ describe("verify", () => {
     // SPEC.md 19 beat. Both sources sit in newswire-a, so corroboration does not increase.
     const a1 = sign("BTC ETF approval reported", "newswire-a.example", "NEWS");
     const a2 = sign("ETF approval: what it means", "newswire-a-markets.example", "NEWS");
-    const r = verify({
+    const r = verify({ fetchers: FETCHERS,
       signal: baseSignal({
         citations: [a1.item.contentHash, a2.item.contentHash],
         declaredStance: {
@@ -329,7 +331,7 @@ describe("verify", () => {
   it("a news item plus a corroborating price gives k=2 and half size", () => {
     const news = sign("BTC rallies on spot demand", "newswire-b.example", "NEWS");
     const hl = sign(hlBody("70000", "69000"), "hyperliquid", "PRICE");
-    const r = verify({
+    const r = verify({ fetchers: FETCHERS,
       signal: baseSignal({
         citations: [news.item.contentHash, hl.item.contentHash],
         declaredStance: { [news.item.contentHash]: "SUPPORT" },
@@ -350,7 +352,7 @@ describe("verify", () => {
   it("ignores a raw body that does not hash to its contentHash", () => {
     const news = sign("BTC rallies on spot demand", "newswire-b.example", "NEWS");
     const hl = sign(hlBody("68000", "69000"), "hyperliquid", "PRICE"); // signed: down
-    const r = verify({
+    const r = verify({ fetchers: FETCHERS,
       signal: baseSignal({
         citations: [news.item.contentHash, hl.item.contentHash],
         declaredStance: { [news.item.contentHash]: "SUPPORT" },
@@ -371,7 +373,7 @@ describe("verify", () => {
     const news2 = sign("Second outlet confirms", "newswire-b.example", "NEWS");
     const body = hlBody("68000", "69000"); // down 145 bps
     const hl = sign(body, "hyperliquid", "PRICE");
-    const r = verify({
+    const r = verify({ fetchers: FETCHERS,
       signal: baseSignal({
         citations: [news.item.contentHash, news2.item.contentHash, hl.item.contentHash],
         declaredStance: {
@@ -397,7 +399,7 @@ describe("verify", () => {
     const hl = sign(hlB, "hyperliquid", "PRICE");
     const bnB = binanceBody("70000", "69000");
     const bn = sign(bnB, "binance-public", "PRICE");
-    const r = verify({
+    const r = verify({ fetchers: FETCHERS,
       signal: baseSignal({
         citations: [news.item.contentHash, hl.item.contentHash, bn.item.contentHash],
         declaredStance: { [news.item.contentHash]: "SUPPORT" },
@@ -413,7 +415,7 @@ describe("verify", () => {
 
   it("an undeclared source is excluded and counts for nothing", () => {
     const blog = sign("trust me", "random-blog.example", "NEWS");
-    const r = verify({
+    const r = verify({ fetchers: FETCHERS,
       signal: baseSignal({
         citations: [blog.item.contentHash],
         declaredStance: { [blog.item.contentHash]: "SUPPORT" },
@@ -430,7 +432,7 @@ describe("verify", () => {
   it("a stale item is excluded", () => {
     // maxAgeSec is 900; this was fetched 2000 seconds before now.
     const old = sign("old news", "newswire-a.example", "NEWS", T0 - 2_000_000_000_000n);
-    const r = verify({
+    const r = verify({ fetchers: FETCHERS,
       signal: baseSignal({
         citations: [old.item.contentHash],
         declaredStance: { [old.item.contentHash]: "SUPPORT" },
@@ -447,7 +449,7 @@ describe("verify", () => {
 
   it("an item dated in the future is stale, not extra-fresh", () => {
     const future = sign("tomorrow's news", "newswire-a.example", "NEWS", T0 + 10_000_000_000_000n);
-    const r = verify({
+    const r = verify({ fetchers: FETCHERS,
       signal: baseSignal({
         citations: [future.item.contentHash],
         declaredStance: { [future.item.contentHash]: "SUPPORT" },
@@ -465,7 +467,7 @@ describe("verify", () => {
       ...item,
       item: { ...item.item, contentHash: "9".repeat(64) },
     };
-    const r = verify({
+    const r = verify({ fetchers: FETCHERS,
       signal: baseSignal({
         citations: [tampered.item.contentHash],
         declaredStance: { [tampered.item.contentHash]: "SUPPORT" },
@@ -479,7 +481,7 @@ describe("verify", () => {
   });
 
   it("an unresolvable citation is reported rather than ignored", () => {
-    const r = verify({
+    const r = verify({ fetchers: FETCHERS,
       signal: baseSignal({ citations: ["f".repeat(64)] }),
       items: [],
       policy: POLICY,
@@ -493,7 +495,7 @@ describe("verify", () => {
     // The verifier is supposed to check price stance itself. If it cannot, it must not fall
     // back to a declared stance, or the one checkable thing becomes forgeable.
     const hl = sign(hlBody("70000", "69000"), "hyperliquid", "PRICE");
-    const r = verify({
+    const r = verify({ fetchers: FETCHERS,
       signal: baseSignal({
         citations: [hl.item.contentHash],
         declaredStance: { [hl.item.contentHash]: "SUPPORT" },
@@ -510,7 +512,7 @@ describe("verify", () => {
   it("a flat price is NEUTRAL rather than rounded into agreement", () => {
     const body = hlBody("69000", "69000");
     const hl = sign(body, "hyperliquid", "PRICE");
-    const r = verify({
+    const r = verify({ fetchers: FETCHERS,
       signal: baseSignal({ citations: [hl.item.contentHash] }),
       items: [hl],
       rawBodies: { [hl.item.contentHash]: body },
@@ -525,7 +527,7 @@ describe("verify", () => {
     const hl = sign(body, "hyperliquid", "PRICE");
     const bnB = binanceBody("68000", "69000");
     const bn = sign(bnB, "binance-public", "PRICE");
-    const r = verify({
+    const r = verify({ fetchers: FETCHERS,
       signal: baseSignal({
         direction: "SHORT",
         citations: [hl.item.contentHash, bn.item.contentHash],
@@ -547,7 +549,7 @@ describe("verify", () => {
     const cbB = coinbaseBody("70000");
     const cb = sign(cbB, "coinbase-public", "PRICE");
     const news = sign("BTC rallies", "newswire-a.example", "NEWS");
-    const r = verify({
+    const r = verify({ fetchers: FETCHERS,
       signal: baseSignal({
         citations: [hl.item.contentHash, cb.item.contentHash, news.item.contentHash],
         declaredStance: { [news.item.contentHash]: "SUPPORT" },
@@ -568,6 +570,7 @@ describe("verify", () => {
     const hlB = hlBody("70000", "69000");
     const hl = sign(hlB, "hyperliquid", "PRICE");
     const input = {
+      fetchers: FETCHERS,
       signal: baseSignal({ citations: [hl.item.contentHash] }),
       items: [hl],
       rawBodies: { [hl.item.contentHash]: hlB },
@@ -582,14 +585,14 @@ describe("verify", () => {
     const up = sign(upB, "hyperliquid", "PRICE");
     const downB = hlBody("68000", "69000");
     const down = sign(downB, "hyperliquid", "PRICE");
-    const a = verify({
+    const a = verify({ fetchers: FETCHERS,
       signal: baseSignal({ citations: [up.item.contentHash] }),
       items: [up],
       rawBodies: { [up.item.contentHash]: upB },
       policy: POLICY,
       nowNs: NOW,
     });
-    const b = verify({
+    const b = verify({ fetchers: FETCHERS,
       signal: baseSignal({ citations: [down.item.contentHash] }),
       items: [down],
       rawBodies: { [down.item.contentHash]: downB },
@@ -601,7 +604,7 @@ describe("verify", () => {
 
   it("explains itself in words, for the attack replay view", () => {
     const news = sign("BTC ETF approved", "newswire-a.example", "NEWS");
-    const r = verify({
+    const r = verify({ fetchers: FETCHERS,
       signal: baseSignal({
         citations: [news.item.contentHash],
         declaredStance: { [news.item.contentHash]: "SUPPORT" },
@@ -683,14 +686,14 @@ describe("the same fake planted across several groups (SPEC.md 2A.6 H4)", () => 
 
   it("one outlet gives k=1 and no size", () => {
     const items = plantedIn(["newswire-a.example"]);
-    const r = verify({ signal: signalFor(items), items, policy, nowNs: NOW });
+    const r = verify({ fetchers: FETCHERS, signal: signalFor(items), items, policy, nowNs: NOW });
     expect(r.k).toBe(1);
     expect(r.sizeMultiplierBps).toBe(0);
   });
 
   it("planted in two groups, k rises to 2 and the trade is allowed at half size", () => {
     const items = plantedIn(["newswire-a.example", "newswire-b.example"]);
-    const r = verify({ signal: signalFor(items), items, policy, nowNs: NOW });
+    const r = verify({ fetchers: FETCHERS, signal: signalFor(items), items, policy, nowNs: NOW });
     expect(r.items).toHaveLength(2);
     expect(r.supportGroups.sort()).toEqual(["newswire-a", "newswire-b"]);
     expect(r.k).toBe(2);
@@ -705,7 +708,7 @@ describe("the same fake planted across several groups (SPEC.md 2A.6 H4)", () => 
       "newswire-b.example",
       "newswire-c.example",
     ]);
-    const r = verify({ signal: signalFor(items), items, policy, nowNs: NOW });
+    const r = verify({ fetchers: FETCHERS, signal: signalFor(items), items, policy, nowNs: NOW });
     expect(r.k).toBe(3);
     expect(r.sizeMultiplierBps).toBe(10000);
   });
@@ -713,14 +716,14 @@ describe("the same fake planted across several groups (SPEC.md 2A.6 H4)", () => 
   it("says in the explanation that one claim is carried by several sources", () => {
     // A reader of the attack replay view must be able to see this, not infer it.
     const items = plantedIn(["newswire-a.example", "newswire-b.example", "newswire-c.example"]);
-    const r = verify({ signal: signalFor(items), items, policy, nowNs: NOW });
+    const r = verify({ fetchers: FETCHERS, signal: signalFor(items), items, policy, nowNs: NOW });
     expect(r.explanation.join("\n")).toMatch(/carried by 3 sources/);
     expect(r.explanation.join("\n")).toMatch(/identical content/);
   });
 
   it("every planted copy reaches the bundle, so the contract can recount the groups", () => {
     const items = plantedIn(["newswire-a.example", "newswire-b.example"]);
-    const r = verify({ signal: signalFor(items), items, policy, nowNs: NOW });
+    const r = verify({ fetchers: FETCHERS, signal: signalFor(items), items, policy, nowNs: NOW });
     expect(r.bundle?.items).toHaveLength(2);
     expect(new Set(r.bundle!.items.map((i) => i.item.source)).size).toBe(2);
   });
@@ -729,7 +732,7 @@ describe("the same fake planted across several groups (SPEC.md 2A.6 H4)", () => 
     // Otherwise an Analyst could manufacture corroboration by repeating a citation.
     const items = plantedIn(["newswire-a.example"]);
     const id = items[0]!.item.contentHash;
-    const r = verify({
+    const r = verify({ fetchers: FETCHERS,
       signal: { ...signalFor(items), citations: [id, id, id] },
       items,
       policy,
@@ -743,7 +746,7 @@ describe("the same fake planted across several groups (SPEC.md 2A.6 H4)", () => 
     // The attacker has to reach a source the policy actually declared, which is the one
     // barrier left: the owner's group list is the attack surface.
     const items = plantedIn(["newswire-a.example", "attacker-blog.example"]);
-    const r = verify({ signal: signalFor(items), items, policy, nowNs: NOW });
+    const r = verify({ fetchers: FETCHERS, signal: signalFor(items), items, policy, nowNs: NOW });
     expect(r.k).toBe(1);
     expect(r.items.some((i) => i.excluded?.includes("not declared"))).toBe(true);
   });
@@ -751,8 +754,100 @@ describe("the same fake planted across several groups (SPEC.md 2A.6 H4)", () => 
   it("result hashes distinguish items that share an evidenceId", () => {
     const one = plantedIn(["newswire-a.example"]);
     const two = plantedIn(["newswire-a.example", "newswire-b.example"]);
-    const a = verify({ signal: signalFor(one), items: one, policy, nowNs: NOW });
-    const b = verify({ signal: signalFor(two), items: two, policy, nowNs: NOW });
+    const a = verify({ fetchers: FETCHERS, signal: signalFor(one), items: one, policy, nowNs: NOW });
+    const b = verify({ fetchers: FETCHERS, signal: signalFor(two), items: two, policy, nowNs: NOW });
     expect(resultHash(a)).not.toBe(resultHash(b));
+  });
+});
+
+// ---------------------------------------------------------------- security regressions
+
+describe("verify, hostile input", () => {
+  const sig = (cites: string[]): Signal => ({
+    asset: "BTC", direction: "LONG", confidence: 6000, horizonMin: 60, citations: cites,
+    declaredStance: Object.fromEntries(cites.map((c) => [c, "SUPPORT" as const])),
+  });
+  const news = (c: string, source: string, fetchedAt: string, seed = SEED): SignedEvidenceItem =>
+    signEvidenceItem(
+      { contentHash: sha256Hex(c), fetchedAt, kind: "NEWS", source, sourceGroup: "x", url: "u" },
+      seed,
+      "NEUTRAL",
+    );
+
+  it("does not count items signed by a key that is not registered", () => {
+    const rogue = Buffer.from(generateFetcherKey().secretKeyHex, "hex");
+    const a = news("x", "newswire-a.example", T0.toString(), rogue);
+    const b = news("x", "newswire-b.example", T0.toString(), rogue);
+    const r = verify({ fetchers: FETCHERS, signal: sig([a.item.contentHash]), items: [a, b], policy: POLICY, nowNs: NOW });
+    expect(r.k).toBe(0);
+    expect(r.items.every((i) => !i.signatureValid && !i.counted)).toBe(true);
+    expect(r.bundle).toBeUndefined();
+  });
+
+  it("counts the same items when the key is registered", () => {
+    const a = news("x", "newswire-a.example", T0.toString());
+    const b = news("x", "newswire-b.example", T0.toString());
+    const r = verify({ fetchers: FETCHERS, signal: sig([a.item.contentHash]), items: [a, b], policy: POLICY, nowNs: NOW });
+    expect(r.k).toBe(2);
+  });
+
+  it.each(["0x" + T0.toString(16), "abc", "-1", "+5", " 5", "05", "1e18", "99999999999999999999999", ""])(
+    "treats fetchedAt %j as not fresh instead of throwing",
+    (fetchedAt) => {
+      const a = news("x", "newswire-a.example", fetchedAt);
+      const r = verify({ fetchers: FETCHERS, signal: sig([a.item.contentHash]), items: [a], policy: POLICY, nowNs: NOW });
+      expect(r.items[0]!.fresh).toBe(false);
+      expect(r.k).toBe(0);
+    },
+  );
+
+  it("treats a malformed nowNs or maxAgeSec as everything stale", () => {
+    const a = news("x", "newswire-a.example", T0.toString());
+    const s = sig([a.item.contentHash]);
+    expect(verify({ fetchers: FETCHERS, signal: s, items: [a], policy: POLICY, nowNs: "0x10" }).k).toBe(0);
+    expect(verify({ fetchers: FETCHERS, signal: s, items: [a], policy: { ...POLICY, maxAgeSec: 1.5 }, nowNs: NOW }).k).toBe(0);
+  });
+
+  it("does not throw on a PRICE item whose source is an Object.prototype name", () => {
+    const body = "{}";
+    for (const source of ["__proto__", "__defineGetter__", "constructor", "toString"]) {
+      const it = signEvidenceItem(
+        { contentHash: sha256Hex(body), fetchedAt: T0.toString(), kind: "PRICE", source, sourceGroup: "x", url: "u" },
+        SEED,
+        "NEUTRAL",
+      );
+      expect(() =>
+        verify({
+          fetchers: FETCHERS, signal: sig([it.item.contentHash]), items: [it],
+          rawBodies: { [it.item.contentHash]: body }, policy: POLICY, nowNs: NOW,
+        }),
+      ).not.toThrow();
+    }
+  });
+
+  it("builds the indicator series only from items that could count", () => {
+    const body = hlBody("100", "100");
+    const rogue = Buffer.from(generateFetcherKey().secretKeyHex, "hex");
+    const mk = (seed: Buffer, at: bigint) =>
+      signEvidenceItem(
+        { contentHash: sha256Hex(body), fetchedAt: at.toString(), kind: "PRICE", source: "hyperliquid", sourceGroup: "x", url: "u" },
+        seed,
+        "NEUTRAL",
+      );
+    const unregistered = mk(rogue, T0);
+    const r = verify({
+      fetchers: FETCHERS,
+      signal: { ...sig([unregistered.item.contentHash]), claims: [{ indicator: "MOMENTUM_24H_BPS", asset: "BTC", value: 0 }] },
+      items: [unregistered], rawBodies: { [unregistered.item.contentHash]: body }, policy: POLICY, nowNs: NOW,
+    });
+    // No eligible price point exists, so the claim has nothing to be recomputed from.
+    expect(r.claimChecks[0]!.recomputed).toBeUndefined();
+    const ok = mk(SEED, T0);
+    const r2 = verify({
+      fetchers: FETCHERS,
+      signal: { ...sig([ok.item.contentHash]), claims: [{ indicator: "MOMENTUM_24H_BPS", asset: "BTC", value: 0 }] },
+      items: [ok], rawBodies: { [ok.item.contentHash]: body }, policy: POLICY, nowNs: NOW,
+    });
+    expect(r2.claimChecks[0]!.recomputed).toBe(0);
   });
 });
