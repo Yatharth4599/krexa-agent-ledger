@@ -1,0 +1,27 @@
+{
+  "cueLog": [
+    "attacker-blog.example: cues=[named-source] score=1"
+  ],
+  "newsScore": 1,
+  "avgMomentum": -224,
+  "priceDirection": -1,
+  "combined": 1,
+  "thesis": {
+    "asset": "BTC",
+    "direction": "LONG",
+    "confidence": 5500,
+    "horizonMin": 240,
+    "maxNotionalUsd": "500000000"
+  },
+  "order": {
+    "action": "OPEN_LONG",
+    "asset": "BTC",
+    "notionalUsd": "500000000"
+  },
+  "citations": [
+    "5723aede90a08504b5b609623c5efa618e74faa4e30dabc47c331ef762185246",
+    "ae59fbe866b2a8e371c17b8454227c1194b6efe98df5d87ab61253a990ed1af1",
+    "2f6b6499510ca33bf1ab279e69a7366fc5e380c8a74ec0ce82226b96fe0f81ae",
+    "8bc75a8f7ba263b7c652ecce2bf80db168072286ebcf0becaae828f15352dc03"
+  ]
+}

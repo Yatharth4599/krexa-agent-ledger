@@ -1,0 +1,1 @@
+{"attack":"undeclared-source-fake/breaking-tag","gaps":["kraken-public","polymarket-gamma"],"market":{"asset":"BTC","momentumBpsByVenue":{"binance-public":-187,"coinbase-public":-269,"hyperliquid":-187},"pricesByVenue":{"binance-public":"73675.67000000","coinbase-public":"73581.63","hyperliquid":"73644.5"}},"priorAction":"HOLD","ts":"1794349800019000000"}

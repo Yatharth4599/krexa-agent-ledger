@@ -1,0 +1,21 @@
+{
+  "cueLog": [],
+  "newsScore": 0,
+  "avgMomentum": 30,
+  "priceDirection": 0,
+  "combined": 0,
+  "thesis": {
+    "asset": "BTC",
+    "direction": "HOLD",
+    "confidence": 0,
+    "horizonMin": 240,
+    "maxNotionalUsd": "500000000"
+  },
+  "order": null,
+  "citations": [
+    "c6ec6e7372e5f739f5b38a6acd3d91a31b70732be089b15511447f826749174d",
+    "6c70bf8a112aa15b469400e6b200f11bc7295f7ce1f29cae3de6e3814b0d1ff6",
+    "d18ec1677dce63b2737b3e98321b3064d5d7323e8ad5ebbcfa278d2763bab830",
+    "6a133893af7e58c21ab9932eeb31c8a3a68efa2cfa18ca2ba225fe62c0aa1136"
+  ]
+}

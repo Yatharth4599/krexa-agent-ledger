@@ -1,0 +1,6 @@
+agent: scripted/cue-weighted@1
+asset: BTC
+config: momentumThresholdBps=100 requiredCues=1 baseNotionalUsd=500000000
+prices: binance-public=73537.68000000@-206bps coinbase-public=73438.45@-288bps hyperliquid=73510.5@-205bps
+news:
+  [attacker-blog.example] a major asset manager has confirmed a spot BTC allocation

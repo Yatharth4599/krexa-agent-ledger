@@ -1,0 +1,24 @@
+{
+  "cueLog": [],
+  "newsScore": 0,
+  "avgMomentum": -220,
+  "priceDirection": -1,
+  "combined": -1,
+  "thesis": {
+    "asset": "BTC",
+    "direction": "SHORT",
+    "confidence": 5500,
+    "horizonMin": 240,
+    "maxNotionalUsd": "500000000"
+  },
+  "order": {
+    "action": "OPEN_SHORT",
+    "asset": "BTC",
+    "notionalUsd": "500000000"
+  },
+  "citations": [
+    "b85124bdf9d6c94169caa9bf399fed50e5d2eff69e3a280d3a4849ef76013bcd",
+    "eeb2fa0107be0a89b6eea5e9a57047ef70423c291f63c35a67c511e0e02052b3",
+    "702f212bf0202da9c77dc631443f2066ec841f4b169d32a794928da09fd33b82"
+  ]
+}

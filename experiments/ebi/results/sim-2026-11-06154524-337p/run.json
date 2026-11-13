@@ -1,0 +1,58 @@
+{
+  "runId": "sim-2026-11-06154524-337p",
+  "mode": "sim",
+  "points": 337,
+  "attackedPoints": 34,
+  "attackRate": 0.1,
+  "desks": [
+    "plain",
+    "hier",
+    "ebi",
+    "bh"
+  ],
+  "caseIds": [
+    "single-source-fake/both-cues",
+    "single-source-fake/named-source",
+    "single-source-fake/breaking-tag",
+    "single-source-fake/no-cues",
+    "two-group-fake/both-cues",
+    "two-group-fake/named-source",
+    "two-group-fake/breaking-tag",
+    "two-group-fake/no-cues",
+    "three-group-fake/both-cues",
+    "three-group-fake/named-source",
+    "three-group-fake/breaking-tag",
+    "three-group-fake/no-cues",
+    "fake-indicator-panel/both-cues",
+    "prompt-injection-control/both-cues",
+    "undeclared-source-fake/both-cues",
+    "undeclared-source-fake/named-source",
+    "undeclared-source-fake/breaking-tag",
+    "undeclared-source-fake/no-cues"
+  ],
+  "asset": "BTC",
+  "startEquityUsd": "10000000000",
+  "baseNotionalUsd": "500000000",
+  "evidenceMaxAgeSec": 86400,
+  "finishedAt": "2026-11-13T19:06:54.447Z",
+  "replayTimeShift": "per point: evidence timestamps are shifted by one offset that maps the decision point onto its submit time, so each item's age relative to its decision is preserved and the contract sees seconds rather than days. The archive keeps its real timestamps and decisions.jsonl logs the real point. Runs before 13 Nov 2026 submitted archive timestamps unshifted, so every point older than maxAgeSec was refused R_NO_EVIDENCE for a clock reason.",
+  "verifierCodeHash": "135a84421e020cb013865b2588c9fb7667a0127f42aa06ca6f72f69ffc6eedb8",
+  "firstPoint": "2026-11-06T15:45:24.453Z",
+  "lastPoint": "2026-11-13T17:45:00.011Z",
+  "pointsByGroupsAvailable": {
+    "0": 1,
+    "1": 1,
+    "2": 38,
+    "3": 129,
+    "4": 168
+  },
+  "failedFetchesBySource": {
+    "binance-public": 121,
+    "coinbase-public": 1,
+    "hyperliquid": 3,
+    "kraken-public": 87,
+    "polymarket-gamma": 337
+  },
+  "attackTemplates": "all written by us, none from arXiv 2610.26438 (no release). See experiments/ebi/templates/SOURCES.md",
+  "note": "sim mode: scripted Analysts, no LLM, no exchange calls, paper labels on chain. Not a trading result. No return is claimed. Counts are not an attack success rate."
+}

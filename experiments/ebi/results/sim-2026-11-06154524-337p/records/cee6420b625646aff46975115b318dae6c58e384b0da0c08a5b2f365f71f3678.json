@@ -1,0 +1,37 @@
+{
+  "schema": "krexa.ual.decision/1",
+  "deskId": "hier",
+  "agent": "trader-hier.owner.test.near",
+  "decidedAt": "2026-11-07T12:15:00.034Z",
+  "modelId": "scripted/hier-3@1",
+  "promptHash": "3f397cb86136d67e01f46bd4370e8312a13cae9aad2b171740c3bc8bdd2b5ba8",
+  "dataSnapshotHash": "10c96cc7ff35b7ca051b69f8689d3e14bff21be98e11846edf19c30177912dc5",
+  "toolCallsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "rawOutputHash": "1449c884037455a66f904771612e9949bfdfa851a173911626b69f0c2c77f912",
+  "parsed": {
+    "thesis": {
+      "asset": "BTC",
+      "direction": "HOLD",
+      "confidence": 0,
+      "horizonMin": 240,
+      "maxNotionalUsd": "500000000"
+    },
+    "order": null
+  },
+  "consistency": {
+    "result": "NA",
+    "checker": "krexa.consistency/1",
+    "failures": []
+  },
+  "aiSig": {
+    "provider": "none",
+    "sigHash": null,
+    "verified": false
+  },
+  "artifacts": {
+    "prompt": "3f397cb86136d67e01f46bd4370e8312a13cae9aad2b171740c3bc8bdd2b5ba8",
+    "snapshot": "10c96cc7ff35b7ca051b69f8689d3e14bff21be98e11846edf19c30177912dc5",
+    "toolCalls": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "rawOutput": "1449c884037455a66f904771612e9949bfdfa851a173911626b69f0c2c77f912"
+  }
+}
