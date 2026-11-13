@@ -179,7 +179,12 @@ impl Harness {
                 r#""url":"https://{}/a""#,
                 "}}"
             ),
-            content_hash, fetched_at_ns, kind, source, group_of(source), source
+            content_hash,
+            fetched_at_ns,
+            kind,
+            source,
+            group_of(source),
+            source
         );
         let sig = self.fetcher_signing_key.sign(signing_string.as_bytes());
         json!({

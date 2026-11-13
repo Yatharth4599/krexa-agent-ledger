@@ -82,11 +82,31 @@ additions below. The second group came from a code review on 7 Nov 2026.
 | `E22_FILL_NOT_PERMITTED` | A fill the desk's state no longer allows: an open after the kill switch engaged, past the daily loss limit, without a fresh mark, past its evidence window, or over `maxOpenPositions`; an exit larger than what is open at fill time; or a fill in a different mode from the one the intent was approved in. |
 | `R_NO_POSITION` | A REDUCE or CLOSE with nothing open on that asset and venue. Without it, an exit with no position is an open on the other side that skips every check. |
 | `R_EXIT_EXCEEDS_POSITION` | A REDUCE or CLOSE for more notional than is open, for the same reason. |
-| `R_EVIDENCE_USED` | An EVIDENCE receipt backs one approved open. Without it, one k=3 bundle backs unlimited full-size opens until it goes stale. |
+| `R_EVIDENCE_USED` | An EVIDENCE receipt backs one approved open. Without it, one k=3 bundle backs unlimited full-size opens until it goes stale. Since 13 Nov 2026 the signed items are spent too, per desk and by `contentHash`: an approved open spends every counted item, and a later bundle (or an earlier bundle cited later) containing a spent item does not count it toward k. `submit_evidence` also adds this reason when it sees a spent item. |
+| `R_CLOSE_SIZE_MISMATCH` | A CLOSE for less than what is open. A CLOSE removes the whole position from the books whatever it was sized at, so a one-micro-dollar CLOSE would have erased the position. Use REDUCE for part of one. The fill side is enforced with `E22_FILL_NOT_PERMITTED`: a CLOSE fill must equal the open notional. |
+| `R_FETCHER_REVOKED` | A fetcher behind a counted item was revoked after the bundle was submitted. Re-checked at intent time. Its items stop counting and k and the size multiplier are recomputed from the rest. |
+| `E23_POSITIONS_OPEN` | `set_mode` while the desk holds an open position. Positions carry no mode of their own, so a paper position could be closed by a live fill, or the reverse. |
+
+Other tightening from the 13 Nov 2026 review, none of which adds a code. They reuse
+`E18_NON_ASCII` (a string that is too long or not printable ASCII), `E13_BAD_HASH` (a hash
+field that is not 64 lowercase hex characters) and `E21_MALFORMED_AMOUNT`:
+
+- Free strings are capped: identifiers and `price` at 64 bytes, `fill.ref`, `quoteRef.signature`
+  and evidence `url` at 256, evidence `source` at 128, `source_group` at 64, and the bundle
+  `asset` at 64. `quoteRef.sha256` and `fill.evidenceSha256` must be hex64.
+- `fetchedAt` must be a canonical `u64` decimal (no sign, no leading zeros).
+- A policy may declare at most 32 sources in total, and a desk may commit at most 16
+  policies (each commit takes a slot marker in the existing `filled` map).
+- A notional of zero is refused on intents and fills (`E21`), and `"-0"` is not accepted
+  anywhere money is parsed.
+- A settlement reference (`kind` plus `ref`) may back one fill per desk (`E11_ALREADY_FILLED`
+  on a repeat).
+- `engage_kill_switch` works while the contract is paused. `get_receipts` no longer overflows
+  on a huge `from_seq`.
 
 Two related changes without a new code. `submit_intent` takes the lower of the caller's
 `equity_usd` and the last mark, so a caller cannot claim equity that clears the daily loss
-limit. `record_mark` no longer accepts ANALYST or DATA agents. An unknown `evidence_seq` is
+limit. `record_mark` accepts only the desk owner and a registered MONITOR: not ANALYST, DATA, TRADER or BASELINE. An unknown `evidence_seq` is
 now a recorded `R_NO_EVIDENCE` refusal, not a panic.
 
 `PAPER_ONLY_UNCORROBORATED` is not a new rejection reason. SPEC.md 4.5 says an uncorroborated
@@ -103,7 +123,7 @@ paper mode, so neither reading of the spec loses information.
 | What does an undeclared evidence source count for? | Nothing. It appears in the receipt with `sourceGroup: "UNDECLARED"` and does not raise k. | Fail closed. Otherwise an attacker picks a source the policy never grouped and gets free corroboration. |
 | Can a bundle be banked and spent later? | No. Freshness is re-checked at intent time against `maxAgeSec`, not only at bundle time. | Otherwise an agent submits evidence while it is fresh and trades on it a day later. |
 | Does one bad signature drop just that item? | No. It taints the whole bundle and the intent is rejected with `R_EVIDENCE_BAD_SIG`, even if the remaining honest items would have cleared the size table. | A bundle containing a forgery is evidence that the pipeline feeding it is compromised. |
-| Who may call `record_mark`? | A registered agent or the desk owner. | SPEC.md 4.1 says registered agent. The owner is included because they could register themselves anyway, so excluding them adds friction, not safety. `submit_intent` stays strict at TRADER or BASELINE, because the Swarms track wants one sub-account per agent and letting the owner shortcut that would make the structure decorative. |
+| Who may call `record_mark`? | The desk owner or a registered MONITOR. Not TRADER or BASELINE. | SPEC.md 4.1 says registered agent. A mark is the equity every loss check is measured against, so the agent whose losses it measures must not be the one reporting it: a compromised Trader marking equity up would hide a loss and reset the daily basis. The owner is the trust root anyway, and the Monitor is rule-based with no model in its path. `submit_intent` stays strict at TRADER or BASELINE, because the Swarms track wants one sub-account per agent and letting the owner shortcut that would make the structure decorative. |
 | Is an oversize position clipped or rejected? | Rejected, with `R_MAX_POSITION`. | SPEC.md 14 item 4: Krexa's off-chain `checkOrder` clips to the maximum, the contract rejects. The differential test records the difference. |
 | What size may a fill be? | At most the requested notional **after** the evidence multiplier. | Filling the full request against a half-sized approval would walk straight through the gate after it had already sized the trade down. |
 

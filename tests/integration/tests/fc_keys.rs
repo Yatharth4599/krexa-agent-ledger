@@ -27,7 +27,10 @@ async fn full_access_key_can_transfer_so_the_denial_below_is_about_the_key() -> 
     let before = beneficiary.view_account().await?.balance;
 
     h.trader_full
-        .transfer_near(beneficiary.id(), near_workspaces::types::NearToken::from_near(1))
+        .transfer_near(
+            beneficiary.id(),
+            near_workspaces::types::NearToken::from_near(1),
+        )
         .await?
         .into_result()?;
 
@@ -47,7 +50,10 @@ async fn function_call_key_cannot_transfer_near() -> Result<()> {
 
     let result = h
         .trader_fc
-        .transfer_near(beneficiary.id(), near_workspaces::types::NearToken::from_near(1))
+        .transfer_near(
+            beneficiary.id(),
+            near_workspaces::types::NearToken::from_near(1),
+        )
         .await;
 
     assert!(
@@ -172,9 +178,8 @@ async fn function_call_key_cannot_add_another_key_to_escalate() -> Result<()> {
 
     // The obvious escape: use the restricted key to grant yourself an unrestricted one.
     // AddKey is not a function call, so the permission does not cover it.
-    let escalated = near_workspaces::types::SecretKey::from_random(
-        near_workspaces::types::KeyType::ED25519,
-    );
+    let escalated =
+        near_workspaces::types::SecretKey::from_random(near_workspaces::types::KeyType::ED25519);
     let result = h
         .trader_fc
         .batch(h.trader_fc.id())
@@ -196,12 +201,38 @@ async fn function_call_key_cannot_add_another_key_to_escalate() -> Result<()> {
 async fn function_call_key_can_do_exactly_its_four_methods() -> Result<()> {
     let h = setup(false).await?;
 
-    // record_mark is in the allowed list, so this must succeed. The positive case belongs
-    // next to the denials: a key that could do nothing at all would pass every test above
-    // while being useless.
+    // record_mark is in the key's method list, so the protocol lets the call through, and the
+    // contract refuses it: marks come from the owner or a MONITOR, never from the agent whose
+    // losses they measure. A Trader that could mark its own equity could report a loss away.
     let head = h.head().await?;
-    let result = h
+    let seq_before = h.head_seq().await?;
+    let refused = h
         .trader_fc
+        .call(h.contract.id(), "record_mark")
+        .args_json(json!({
+            "desk_id": DESK,
+            "equity_usd": "99999999999999",
+            "prev_hash": head,
+            "decisions_root": null,
+        }))
+        .gas(AGENT_GAS)
+        .transact()
+        .await?;
+    assert!(
+        refused.is_failure() && format!("{:?}", refused.failures()).contains("E02_NOT_AGENT"),
+        "a TRADER mark must be refused by the contract: {:?}",
+        refused.failures()
+    );
+    assert_eq!(
+        h.head_seq().await?,
+        seq_before,
+        "a refused mark appends nothing"
+    );
+
+    // The Monitor's key marks, and the receipt names it.
+    let head = h.head().await?;
+    let marked = h
+        .monitor_fc
         .call(h.contract.id(), "record_mark")
         .args_json(json!({
             "desk_id": DESK,
@@ -212,16 +243,45 @@ async fn function_call_key_can_do_exactly_its_four_methods() -> Result<()> {
         .gas(AGENT_GAS)
         .transact()
         .await?;
-
     assert!(
-        result.is_success(),
-        "record_mark is in the allowed method list and must work: {:?}",
-        result.failures()
+        marked.is_success(),
+        "a MONITOR key may record a mark: {:?}",
+        marked.failures()
     );
-
     let receipts = h.receipts().await?;
     let last = receipts.last().expect("a receipt");
     assert_eq!(last["kind"], json!("MARK"));
+    assert_eq!(last["agent"], json!(h.monitor_fc.id().to_string()));
+
+    // The positive case for the Trader key: it can write an intent. A refusal on the
+    // contract's rules is still a receipt, and a key that could do nothing at all would pass
+    // every denial above while being useless.
+    let head = h.head().await?;
+    let intent = h
+        .trader_fc
+        .call(h.contract.id(), "submit_intent")
+        .args_json(json!({
+            "desk_id": DESK,
+            "intent": {
+                "clientId": "four-methods", "venue": "hyperliquid", "asset": "BTC",
+                "side": "OPEN_LONG", "notionalUsd": "100000000", "maxSlippageBps": 30,
+                "quoteRef": null,
+            },
+            "prev_hash": head,
+            "equity_usd": "10000000000",
+            "decision_hash": null, "ai_sig_hash": null, "evidence_seq": null,
+        }))
+        .gas(AGENT_GAS)
+        .transact()
+        .await?;
+    assert!(
+        intent.is_success(),
+        "submit_intent is in the allowed method list and must work: {:?}",
+        intent.failures()
+    );
+    let receipts = h.receipts().await?;
+    let last = receipts.last().expect("a receipt");
+    assert_eq!(last["kind"], json!("INTENT"));
     assert_eq!(last["agent"], json!(h.trader_fc.id().to_string()));
     Ok(())
 }
@@ -383,7 +443,11 @@ async fn monitor_may_engage_but_its_key_cannot_release() -> Result<()> {
         .args_json(json!({"desk_id": DESK}))
         .await?
         .json()?;
-    assert_eq!(desk["killSwitch"], json!(true), "the monitor can stop the desk");
+    assert_eq!(
+        desk["killSwitch"],
+        json!(true),
+        "the monitor can stop the desk"
+    );
 
     // Release: not in the key's method list, so the protocol refuses it. The contract would
     // refuse it too, since release is owner-only. Two independent barriers again.
@@ -445,7 +509,10 @@ async fn monitor_may_engage_but_its_key_cannot_release() -> Result<()> {
 async fn every_role_gets_a_least_privilege_key() -> Result<()> {
     assert_eq!(methods_for_role("TRADER").len(), 4);
     assert_eq!(methods_for_role("BASELINE").len(), 4);
-    assert_eq!(methods_for_role("MONITOR"), vec!["engage_kill_switch", "record_mark"]);
+    assert_eq!(
+        methods_for_role("MONITOR"),
+        vec!["engage_kill_switch", "record_mark"]
+    );
     assert_eq!(methods_for_role("DATA"), vec!["record_mark"]);
     // An Analyst writes no receipts at all: it emits a signal off chain.
     assert!(methods_for_role("ANALYST").is_empty());

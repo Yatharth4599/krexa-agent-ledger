@@ -74,3 +74,23 @@ Honestly, in rough order of how much:
    data would make the H4 attack materially harder.
 3. **Verified model signatures.** Would turn the self-reported model id into a checked one.
 4. **An audit.** Everything above assumes the contract does what its tests say.
+
+## Known limits left after the 13 Nov 2026 review
+
+- **Evidence spend is keyed by `contentHash` per desk, not by asset or direction.** The signed
+  payload has no asset field, so the contract cannot tell that the same signed item was
+  fetched "for BTC" and is now cited for ETH. Adding `asset` to the payload would change what
+  the fetcher signs and needs a TypeScript signer change. Until then one item spends once per
+  desk whatever it is cited for, which is the safe direction: it can only be used fewer times,
+  never more.
+- **Cross-owner settlement reuse.** A fill reference (`kind` plus `ref`) is unique per desk
+  owner: one owner cannot cite the same venue tx on two desks, but two different owners can.
+  A contract-wide key was rejected on purpose: any stranger could then front-run and burn
+  another owner's real venue tx reference, a denial of service. Closing this properly needs
+  venue-signed settlement (the venue attests which account the fill belongs to), which the
+  ledger cannot check on chain today.
+- **Marks are owner or Monitor, so a compromised owner key still marks anything.** The owner is
+  already the trust root (it can commit any policy). The change removes the Trader as a source
+  of equity, not the owner.
+- **At most 16 policies per desk, for the life of the desk.** A desk that needs a 17th policy
+  needs a new desk. The cap bounds storage; there is no way to reclaim a slot.

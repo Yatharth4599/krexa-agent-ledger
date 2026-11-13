@@ -137,7 +137,9 @@ pub fn canonical_hash(value: &Value) -> String {
 
 /// True if `s` is exactly 64 lowercase hex characters.
 pub fn is_hex64(s: &str) -> bool {
-    s.len() == 64 && s.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    s.len() == 64
+        && s.bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
 /// Walk a parsed value and reject any float or non-printable-ASCII string, returning the

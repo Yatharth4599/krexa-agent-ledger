@@ -95,8 +95,7 @@ impl Policy {
     }
 
     pub fn max_position_usd(&self) -> MicroUsd {
-        parse_micro_usd_unsigned(self.obj()["maxPositionUsd"].as_str().unwrap_or("0"))
-            .unwrap_or(0)
+        parse_micro_usd_unsigned(self.obj()["maxPositionUsd"].as_str().unwrap_or("0")).unwrap_or(0)
     }
 
     pub fn max_open_positions(&self) -> u64 {
@@ -187,7 +186,12 @@ impl Policy {
     fn size_table(&self) -> Vec<u32> {
         self.evidence()
             .and_then(|e| e["sizeTableBps"].as_array())
-            .map(|a| a.iter().filter_map(|v| v.as_u64()).map(|n| n as u32).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_u64())
+                    .map(|n| n as u32)
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
@@ -287,8 +291,14 @@ fn validate(value: &Value, desk_id: &str) -> Result<(), &'static str> {
                     return Err(E05_POLICY_INVALID);
                 }
             }
-            let venue = e.get("venue").and_then(|v| v.as_str()).ok_or(E05_POLICY_INVALID)?;
-            let addr = e.get("address").and_then(|v| v.as_str()).ok_or(E05_POLICY_INVALID)?;
+            let venue = e
+                .get("venue")
+                .and_then(|v| v.as_str())
+                .ok_or(E05_POLICY_INVALID)?;
+            let addr = e
+                .get("address")
+                .and_then(|v| v.as_str())
+                .ok_or(E05_POLICY_INVALID)?;
             if venue.is_empty() || addr.is_empty() || addr.len() > 128 {
                 return Err(E05_POLICY_INVALID);
             }
@@ -351,7 +361,10 @@ fn validate_evidence(ev: &Value) -> Result<(), &'static str> {
                 return Err(E05_POLICY_INVALID);
             }
         }
-        let name = go.get("group").and_then(|v| v.as_str()).ok_or(E05_POLICY_INVALID)?;
+        let name = go
+            .get("group")
+            .and_then(|v| v.as_str())
+            .ok_or(E05_POLICY_INVALID)?;
         if name.is_empty() || name.len() > 64 {
             return Err(E05_POLICY_INVALID);
         }
@@ -360,7 +373,10 @@ fn validate_evidence(ev: &Value) -> Result<(), &'static str> {
         }
         group_names.push(name);
 
-        let sources = go.get("sources").and_then(|v| v.as_array()).ok_or(E05_POLICY_INVALID)?;
+        let sources = go
+            .get("sources")
+            .and_then(|v| v.as_array())
+            .ok_or(E05_POLICY_INVALID)?;
         if sources.is_empty() {
             return Err(E05_POLICY_INVALID);
         }
@@ -375,6 +391,9 @@ fn validate_evidence(ev: &Value) -> Result<(), &'static str> {
                 return Err(E05_POLICY_INVALID);
             }
             all_sources.push(name);
+            if all_sources.len() > MAX_SOURCES_PER_POLICY {
+                return Err(E05_POLICY_INVALID);
+            }
         }
     }
 

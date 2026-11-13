@@ -19,8 +19,9 @@ async fn evidence_gate_end_to_end_on_sandbox() -> Result<()> {
     let h = setup(true).await?;
 
     // --- an equity mark, so opens are not blocked for want of one ---
+    // Signed by the Monitor key: record_mark takes the owner or a MONITOR, never a TRADER.
     let head = h.head().await?;
-    h.trader_fc
+    h.monitor_fc
         .call(h.contract.id(), "record_mark")
         .args_json(json!({
             "desk_id": DESK, "equity_usd": "10000000000",
@@ -320,7 +321,7 @@ async fn a_stale_prev_hash_appends_nothing_on_a_real_node() -> Result<()> {
     let h = setup(false).await?;
 
     let head = h.head().await?;
-    h.trader_fc
+    h.monitor_fc
         .call(h.contract.id(), "record_mark")
         .args_json(json!({
             "desk_id": DESK, "equity_usd": "10000000000",
@@ -352,7 +353,10 @@ async fn a_stale_prev_hash_appends_nothing_on_a_real_node() -> Result<()> {
         .transact()
         .await?;
 
-    assert!(replayed.into_result().is_err(), "stale head must be refused");
+    assert!(
+        replayed.into_result().is_err(),
+        "stale head must be refused"
+    );
     assert_eq!(
         h.head_seq().await?,
         seq_before,
@@ -368,7 +372,7 @@ async fn a_baseline_desk_with_no_evidence_block_trades_without_citations() -> Re
     let h = setup(false).await?;
 
     let head = h.head().await?;
-    h.trader_fc
+    h.monitor_fc
         .call(h.contract.id(), "record_mark")
         .args_json(json!({
             "desk_id": DESK, "equity_usd": "10000000000",

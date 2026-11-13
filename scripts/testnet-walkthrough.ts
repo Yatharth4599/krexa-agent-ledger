@@ -260,7 +260,8 @@ async function main(): Promise<void> {
     call(
       "record_mark",
       { desk_id: DESK, equity_usd: "10000000000", prev_hash: head().hash, decisions_root: null },
-      { signAs: TRADER },
+      // The owner marks: record_mark refuses a TRADER or BASELINE key.
+      { signAs: OWNER },
     );
   } catch (e) {
     const err = e as { stdout?: string; stderr?: string };
@@ -372,7 +373,9 @@ async function main(): Promise<void> {
       fill: {
         kind: "SIMULATED",
         simulated: true,
-        ref: "paper:testnet-walkthrough:BTC",
+        // A settlement reference may back one fill on the whole contract, so a re-run needs
+        // a new one.
+        ref: `paper:testnet-walkthrough:BTC:${Date.now()}`,
         price: "70000",
         notionalUsd: "250000000",
         evidenceSha256: sha256Hex(PRICE),

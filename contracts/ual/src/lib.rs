@@ -33,8 +33,8 @@ use serde_json::{json, Value};
 
 mod canonical;
 mod errors;
-mod evidence;
 mod events;
+mod evidence;
 mod policy;
 mod types;
 
@@ -148,6 +148,13 @@ impl Ual {
         // desk unable to act, so reject it now rather than at the first intent.
         require(parsed.mode_allowed(desk.mode), E17_MODE_NOT_ALLOWED);
 
+        // A desk may commit at most MAX_POLICIES_PER_DESK policies in its life. The count lives
+        // in slot markers in `filled` ("<desk>:<n>:pol"), so no stored struct gains a field.
+        let slot = (0..MAX_POLICIES_PER_DESK)
+            .find(|n| self.filled.get(&policy_slot_key(&desk_id, *n)).is_none())
+            .unwrap_or_else(|| env::panic_str(E05_POLICY_INVALID));
+        self.filled.insert(policy_slot_key(&desk_id, slot), true);
+
         let policy_hash = sha256_hex(parsed.canonical_str().as_bytes());
         self.policies
             .insert(policy_hash.clone(), parsed.canonical_str().to_string());
@@ -177,6 +184,9 @@ impl Ual {
         let mut desk = self.desk(&desk_id);
         self.assert_desk_owner(&desk);
         let new_mode = Mode::parse(&mode).unwrap_or_else(|| env::panic_str(E17_MODE_NOT_ALLOWED));
+        // Positions carry no mode of their own. Flip the mode under one and a paper position
+        // could be closed by a live fill, or the reverse.
+        require(desk.open_positions.is_empty(), E23_POSITIONS_OPEN);
         let policy = self.policy_of(&desk);
         require(policy.mode_allowed(new_mode), E17_MODE_NOT_ALLOWED);
 
@@ -277,9 +287,15 @@ impl Ual {
         self.assert_not_paused();
         let mut desk = self.desk(&desk_id);
         self.assert_desk_owner(&desk);
-        require(decode_ed25519_pubkey(&pubkey).is_some(), E19_UNKNOWN_FETCHER);
+        require(
+            decode_ed25519_pubkey(&pubkey).is_some(),
+            E19_UNKNOWN_FETCHER,
+        );
         require(is_hex64(&attestation_hash), E13_BAD_HASH);
-        require(label.len() <= 64 && canonical::is_printable_ascii(&label), E18_NON_ASCII);
+        require(
+            label.len() <= 64 && canonical::is_printable_ascii(&label),
+            E18_NON_ASCII,
+        );
 
         if let Some(existing) = desk.fetchers.iter_mut().find(|f| f.pubkey == pubkey) {
             existing.attestation_hash = attestation_hash.clone();
@@ -364,7 +380,18 @@ impl Ual {
         // have assigned stances by the committed rules.
         require(bundle.verifier_code_hash == expected_verifier, E13_BAD_HASH);
 
-        let result = evidence::evaluate_bundle(&bundle, &policy, &desk, env::block_timestamp());
+        let result = evidence::evaluate_bundle(
+            &bundle,
+            &policy,
+            &desk,
+            env::block_timestamp(),
+            &|content_hash| {
+                self.filled
+                    .get(&evidence_item_key(&desk_id, content_hash))
+                    .is_some()
+            },
+        );
+        let any_spent = result.any_spent;
         let summary = result.summary;
 
         let mut reasons: Vec<String> = Vec::new();
@@ -373,6 +400,9 @@ impl Ual {
         }
         if summary.any_stale {
             reasons.push(R_EVIDENCE_STALE.to_string());
+        }
+        if any_spent {
+            reasons.push(R_EVIDENCE_USED.to_string());
         }
         if let Some(min_k) = policy.min_k_for_nonzero() {
             if summary.k < min_k {
@@ -419,13 +449,26 @@ impl Ual {
         let policy = self.policy_of(&desk);
         self.assert_chain(&desk, &prev_hash);
 
-        let requested =
-            parse_micro_usd_unsigned(&intent.notional_usd).unwrap_or_else(|| env::panic_str(E21_MALFORMED_AMOUNT));
+        let requested = parse_micro_usd_unsigned(&intent.notional_usd)
+            .unwrap_or_else(|| env::panic_str(E21_MALFORMED_AMOUNT));
+        // A zero notional is a no-op that still appends a receipt and, as a CLOSE or fill,
+        // could be mistaken for an exit.
+        require(requested > 0, E21_MALFORMED_AMOUNT);
         let claimed_equity =
             parse_micro_usd(&equity_usd).unwrap_or_else(|| env::panic_str(E21_MALFORMED_AMOUNT));
         for s in [&intent.client_id, &intent.asset, &intent.venue] {
-            require(canonical::is_printable_ascii(s), E18_NON_ASCII);
-            require(s.len() <= MAX_IDENT_LEN, E18_NON_ASCII);
+            require(evidence::bounded_text(s, MAX_IDENT_LEN), E18_NON_ASCII);
+        }
+        if let Some(q) = &intent.quote_ref {
+            require(
+                evidence::bounded_text(&q.kind, MAX_IDENT_LEN),
+                E18_NON_ASCII,
+            );
+            require(is_hex64(&q.sha256), E13_BAD_HASH);
+            require(
+                evidence::bounded_text(&q.signature, MAX_REF_LEN),
+                E18_NON_ASCII,
+            );
         }
         if let Some(h) = &decision_hash {
             require(is_hex64(h), E13_BAD_HASH);
@@ -444,10 +487,7 @@ impl Ual {
             _ => claimed_equity,
         };
         let daily_pnl = daily_pnl_against(&stats, now, equity);
-        let dd_bps = drawdown_bps(
-            parse_micro_usd(&stats.high_water_usd).unwrap_or(0),
-            equity,
-        );
+        let dd_bps = drawdown_bps(parse_micro_usd(&stats.high_water_usd).unwrap_or(0), equity);
 
         let mut reasons: Vec<String> = Vec::new();
 
@@ -509,6 +549,9 @@ impl Ual {
                 reasons.push(R_NO_POSITION.to_string());
             } else if requested > open {
                 reasons.push(R_EXIT_EXCEEDS_POSITION.to_string());
+            } else if intent.side == Side::CLOSE && requested != open {
+                // A CLOSE removes the whole position from the books whatever it was sized at.
+                reasons.push(R_CLOSE_SIZE_MISMATCH.to_string());
             }
         }
 
@@ -522,6 +565,24 @@ impl Ual {
         if verdict == Verdict::APPROVED {
             if let Some(ev) = evidence_receipt_seq {
                 self.filled.insert(evidence_used_key(&desk_id, ev), true);
+                // Spend the items too, per desk, so the same signed items resubmitted in a
+                // new submit_evidence call cannot back another open.
+                let spent: Vec<String> = self
+                    .receipts
+                    .get(&receipt_key(&desk_id, ev))
+                    .and_then(|r| r.evidence.as_ref())
+                    .map(|s| {
+                        s.items
+                            .iter()
+                            .filter(|i| i.valid)
+                            .map(|i| i.evidence_id.clone())
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                for content_hash in spent {
+                    self.filled
+                        .insert(evidence_item_key(&desk_id, &content_hash), true);
+                }
             }
         }
 
@@ -588,7 +649,24 @@ impl Ual {
         };
         let filled_notional = parse_micro_usd_unsigned(&fill.notional_usd)
             .unwrap_or_else(|| env::panic_str(E21_MALFORMED_AMOUNT));
+        require(filled_notional > 0, E21_MALFORMED_AMOUNT);
         require(filled_notional <= approved, E15_FILL_EXCEEDS_INTENT);
+
+        // Bound what lands in the receipt, then make sure this settlement was not already
+        // claimed by another fill, on this desk or any other.
+        require(
+            evidence::bounded_text(&fill.reference, MAX_REF_LEN),
+            E18_NON_ASCII,
+        );
+        require(
+            evidence::bounded_text(&fill.price, MAX_IDENT_LEN),
+            E18_NON_ASCII,
+        );
+        if let Some(h) = &fill.evidence_sha256 {
+            require(is_hex64(h), E13_BAD_HASH);
+        }
+        let ref_key = fill_ref_key(&desk.owner, &fill);
+        require(self.filled.get(&ref_key).is_none(), E11_ALREADY_FILLED);
 
         // Label rules, SPEC.md 3.4. A simulated fill on a live desk, or a settled fill on a
         // paper desk, is the exact confusion the on-chain label exists to prevent.
@@ -616,7 +694,8 @@ impl Ual {
             // auto kill switch only covers the loss limit when the policy turns it on.
             let stats = desk.stats(desk.mode);
             require(
-                stats.last_mark_ts != 0 && now.saturating_sub(stats.last_mark_ts) <= MARK_MAX_AGE_NS,
+                stats.last_mark_ts != 0
+                    && now.saturating_sub(stats.last_mark_ts) <= MARK_MAX_AGE_NS,
                 E22_FILL_NOT_PERMITTED,
             );
             let marked = parse_micro_usd(&stats.last_equity_usd).unwrap_or(0);
@@ -629,11 +708,17 @@ impl Ual {
             if policy.evidence_required() {
                 let approved_at: u64 = intent_receipt.ts.parse().unwrap_or(0);
                 let max_age_ns = policy.evidence_max_age_sec().saturating_mul(1_000_000_000);
-                require(now.saturating_sub(approved_at) <= max_age_ns, E22_FILL_NOT_PERMITTED);
+                require(
+                    now.saturating_sub(approved_at) <= max_age_ns,
+                    E22_FILL_NOT_PERMITTED,
+                );
             }
         } else {
+            let open = open_notional(&desk, &intent.asset, &intent.venue);
+            require(filled_notional <= open, E22_FILL_NOT_PERMITTED);
+            // A CLOSE removes the whole position, so it may only fill the whole position.
             require(
-                filled_notional <= open_notional(&desk, &intent.asset, &intent.venue),
+                intent.side != Side::CLOSE || filled_notional == open,
                 E22_FILL_NOT_PERMITTED,
             );
         }
@@ -644,6 +729,7 @@ impl Ual {
 
         apply_fill_to_positions(&mut desk, &intent, filled_notional, intent_seq);
         self.filled.insert(fill_key, true);
+        self.filled.insert(ref_key, true);
 
         let mode = desk.mode;
         let stats = desk.stats(mode).clone();
@@ -677,9 +763,7 @@ impl Ual {
     /// receipt, which is how HOLD decisions get committed. Without it an agent could decide
     /// not to trade a thousand times and later claim whichever of those it liked.
     ///
-    /// Callable by a registered agent or by the desk owner. The owner is allowed because they
-    /// could register themselves as an agent anyway, so refusing them adds friction, not
-    /// safety.
+    /// Callable by the desk owner or a registered MONITOR, and by no trading agent.
     pub fn record_mark(
         &mut self,
         desk_id: String,
@@ -690,13 +774,12 @@ impl Ual {
         self.assert_not_paused();
         let mut desk = self.desk(&desk_id);
         let caller = env::predecessor_account_id();
-        // Owner, trading agents and the Monitor. ANALYST and DATA never touch the ledger
-        // (RULES.md 1), and a mark can reset the day basis or trip the auto kill switch.
+        // Owner and the Monitor only. A mark sets the equity every loss check is measured
+        // against and can reset the day basis, so the agent whose losses it measures must not
+        // be the one reporting it: a compromised TRADER marking equity up would hide a loss.
+        // ANALYST and DATA never touch the ledger either (RULES.md 1).
         require(
-            desk.owner == caller
-                || desk
-                    .active_agent(&caller)
-                    .is_some_and(|r| r.may_trade() || r == Role::MONITOR),
+            desk.owner == caller || desk.active_agent(&caller) == Some(Role::MONITOR),
             E02_NOT_AGENT,
         );
         let policy = self.policy_of(&desk);
@@ -740,7 +823,10 @@ impl Ual {
         // and it only ever tightens.
         let loss_limit = policy.daily_loss_limit_usd();
         let mut auto_engaged = false;
-        if policy.auto_on_daily_loss() && loss_limit > 0 && daily_pnl <= -loss_limit && !desk.kill_switch
+        if policy.auto_on_daily_loss()
+            && loss_limit > 0
+            && daily_pnl <= -loss_limit
+            && !desk.kill_switch
         {
             desk.kill_switch = true;
             desk.kill_reason = "auto: daily loss limit".to_string();
@@ -819,8 +905,10 @@ impl Ual {
     /// Engage the kill switch. The desk owner may always do this. A registered MONITOR may
     /// too, if the policy says so. A Monitor can never release it, which is the asymmetry
     /// that makes it safe to let a rule-based agent hold the brake.
+    ///
+    /// Deliberately not blocked by the global pause: the brake must work in exactly the
+    /// emergency that makes someone pause the contract.
     pub fn engage_kill_switch(&mut self, desk_id: String, reason: String) {
-        self.assert_not_paused();
         let mut desk = self.desk(&desk_id);
         let policy = self.policy_of(&desk);
         let caller = env::predecessor_account_id();
@@ -830,7 +918,10 @@ impl Ual {
             is_owner || (is_monitor && policy.monitor_may_engage()),
             E01_NOT_OWNER,
         );
-        require(reason.len() <= 200 && canonical::is_printable_ascii(&reason), E18_NON_ASCII);
+        require(
+            reason.len() <= 200 && canonical::is_printable_ascii(&reason),
+            E18_NON_ASCII,
+        );
 
         desk.kill_switch = true;
         desk.kill_reason = reason.clone();
@@ -865,10 +956,7 @@ impl Ual {
             },
         );
         self.desks.insert(desk_id.clone(), desk);
-        events::emit(
-            events::KILL_SWITCH_RELEASED,
-            json!({"deskId": desk_id}),
-        );
+        events::emit(events::KILL_SWITCH_RELEASED, json!({"deskId": desk_id}));
     }
 
     // ------------------------------------------------------------ global pause
@@ -935,7 +1023,9 @@ impl Ual {
         };
         let limit = limit.min(100) as u64;
         let start = from_seq.max(1);
-        let end = (start + limit).min(desk.head_seq + 1);
+        let end = start
+            .saturating_add(limit)
+            .min(desk.head_seq.saturating_add(1));
         (start..end)
             .filter_map(|seq| self.receipts.get(&receipt_key(&desk_id, seq)))
             .map(|r| r.to_value())
@@ -1036,7 +1126,11 @@ impl Ual {
             None => return (0, Some(seq), vec![R_NO_EVIDENCE.to_string()]),
             Some(r) => r,
         };
-        if self.filled.get(&evidence_used_key(&desk.desk_id, seq)).is_some() {
+        if self
+            .filled
+            .get(&evidence_used_key(&desk.desk_id, seq))
+            .is_some()
+        {
             reasons.push(R_EVIDENCE_USED.to_string());
         }
         let summary = match (&receipt.kind, &receipt.evidence) {
@@ -1068,8 +1162,48 @@ impl Ual {
             reasons.push(R_EVIDENCE_STALE.to_string());
         }
 
+        // Re-check what was true at bundle time. An item stops counting if it was spent by an
+        // approved open since, or if its fetcher was revoked since. When any item drops out,
+        // k and the multiplier are recomputed from the items that still count.
+        let mut k = summary.k;
+        let mut multiplier = summary.size_multiplier_bps;
+        let mut any_spent = false;
+        let mut any_revoked = false;
+        let mut support: Vec<&str> = Vec::new();
+        let mut contradict: Vec<&str> = Vec::new();
+        for i in summary.items.iter().filter(|i| i.valid) {
+            let spent = self
+                .filled
+                .get(&evidence_item_key(&desk.desk_id, &i.evidence_id))
+                .is_some();
+            let revoked = desk.fetcher(&i.fetcher_key).is_none_or(|f| f.revoked);
+            any_spent |= spent;
+            any_revoked |= revoked;
+            if spent || revoked || i.source_group == "UNDECLARED" {
+                continue;
+            }
+            let bucket = match i.stance {
+                Stance::SUPPORT => &mut support,
+                Stance::CONTRADICT => &mut contradict,
+                Stance::NEUTRAL => continue,
+            };
+            if !bucket.contains(&i.source_group.as_str()) {
+                bucket.push(&i.source_group);
+            }
+        }
+        if any_spent || any_revoked {
+            k = (support.len() as u32).saturating_sub(contradict.len() as u32);
+            multiplier = policy.size_multiplier_bps(k);
+            if any_spent && !reasons.contains(&R_EVIDENCE_USED.to_string()) {
+                reasons.push(R_EVIDENCE_USED.to_string());
+            }
+            if any_revoked {
+                reasons.push(R_FETCHER_REVOKED.to_string());
+            }
+        }
+
         if let Some(min_k) = policy.min_k_for_nonzero() {
-            if summary.k < min_k {
+            if k < min_k {
                 reasons.push(R_UNCORROBORATED.to_string());
                 // SPEC.md 4.5: in paper this situation is recorded as
                 // PAPER_ONLY_UNCORROBORATED. Both markers are emitted so neither reading of
@@ -1080,7 +1214,7 @@ impl Ual {
             }
         }
 
-        (summary.size_multiplier_bps, Some(seq), reasons)
+        (multiplier, Some(seq), reasons)
     }
 
     /// Build, seal, store and emit a receipt, advancing the desk head.
@@ -1189,6 +1323,26 @@ fn receipt_key(desk_id: &str, seq: u64) -> String {
 /// two-segment receipt key, so this shares the `filled` map without a state migration.
 fn evidence_used_key(desk_id: &str, seq: u64) -> String {
     format!("{desk_id}:{seq}:ev")
+}
+
+/// "<deskId>:<contentHash>:evi" marks one evidence item spent on a desk. The hash is 64 hex
+/// characters, so it never collides with a numeric seq, and the suffix differs from ":ev".
+fn evidence_item_key(desk_id: &str, content_hash: &str) -> String {
+    format!("{desk_id}:{content_hash}:evi")
+}
+
+/// "<deskId>:<n>:pol" marks the n-th policy commit slot of a desk as taken.
+fn policy_slot_key(desk_id: &str, n: u32) -> String {
+    format!("{desk_id}:{n}:pol")
+}
+
+/// "<owner>:<sha256(kind:ref)>:fr" marks a settlement reference as claimed by a fill on one of
+/// that owner's desks. Keyed by owner: one owner cannot cite the same venue tx on two desks, and
+/// a stranger cannot front-run and burn another owner's real reference. Reuse across owners is
+/// a known limit (THREAT_MODEL.md). Account ids cannot contain ':', so keys cannot collide.
+fn fill_ref_key(owner: &AccountId, fill: &FillRef) -> String {
+    let digest = sha256_hex(format!("{}:{}", fill.kind.as_str(), fill.reference).as_bytes());
+    format!("{owner}:{digest}:fr")
 }
 
 /// Open notional on one asset and venue, across both directions.

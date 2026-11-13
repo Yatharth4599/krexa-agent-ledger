@@ -262,14 +262,35 @@ async function main(): Promise<void> {
 
     const head = async () => (await ownerClient.head(DESK)).hash;
 
-    // The four allowed methods do work, which is what makes the Trader useful at all.
-    const markOk = await trader.callRaw(
-      contract,
-      "record_mark",
-      { desk_id: DESK, equity_usd: "10000000000", prev_hash: await head(), decisions_root: null },
-      { gas: GAS, attachedDeposit: "0", signWithKey: fcKey },
+    // The owner marks equity, because the contract takes marks from the owner or a MONITOR
+    // and from no trading agent. Without this the desk has no mark and nothing can open.
+    const ownerMark = await ownerClient.recordMark(DESK, "10000000000");
+    say(`  ALLOWED   record_mark by the desk OWNER, equity marked (receipt #${ownerMark.seq})`);
+
+    // record_mark is one of the Trader key's four methods, so the protocol lets the call
+    // through. The contract does not: a Trader that could mark its own equity could report a
+    // loss away. The refusal is a panic, so nothing is appended.
+    const seqBeforeForgedMark = (await ownerClient.head(DESK)).seq;
+    check(
+      await refused(async () =>
+        trader.callRaw(
+          contract,
+          "record_mark",
+          {
+            desk_id: DESK,
+            equity_usd: "99999999999999",
+            prev_hash: await head(),
+            decisions_root: null,
+          },
+          { gas: GAS, attachedDeposit: "0", signWithKey: fcKey },
+        ),
+      ),
+      "compromised Trader marks its own equity up (record_mark, E02_NOT_AGENT)",
     );
-    say(`  ALLOWED   record_mark, one of the four permitted methods (${markOk.failed ? "FAILED" : "ok"})`);
+    check(
+      (await ownerClient.head(DESK)).seq === seqBeforeForgedMark,
+      "the refused mark appended nothing",
+    );
 
     const nowNs = () => (BigInt(Date.now()) * 1_000_000n).toString();
     const sign = (content: string, source: string, group: string, kind: "NEWS" | "PRICE") =>

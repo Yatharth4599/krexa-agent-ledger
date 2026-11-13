@@ -50,8 +50,19 @@ pub const E21_MALFORMED_AMOUNT: &str = "E21_MALFORMED_AMOUNT";
 /// or a fill in a different mode from the one the intent was approved in.
 pub const E22_FILL_NOT_PERMITTED: &str = "E22_FILL_NOT_PERMITTED";
 
+/// Addition beyond SPEC.md 4.4. `set_mode` while the desk still holds an open position. The
+/// position was opened and sized under the other mode's labels and stats, so flipping the mode
+/// under it would let a paper position be closed by a live fill, or the reverse.
+pub const E23_POSITIONS_OPEN: &str = "E23_POSITIONS_OPEN";
+
 /// Free-text identifiers on an intent are capped so one call cannot buy unbounded storage.
 pub const MAX_IDENT_LEN: usize = 64;
+/// Cap for free-form reference strings (fill ref, price, signature, url) for the same reason.
+pub const MAX_REF_LEN: usize = 256;
+/// Most policies one desk may ever commit. Each commit stores the policy and appends a receipt.
+pub const MAX_POLICIES_PER_DESK: u32 = 16;
+/// Most sources one policy may declare across all its groups.
+pub const MAX_SOURCES_PER_POLICY: usize = 32;
 
 // --- 4.5 Rejection reasons (REJECTED receipts, transaction succeeds) ---
 
@@ -74,6 +85,13 @@ pub const R_EVIDENCE_USED: &str = "R_EVIDENCE_USED";
 pub const R_NO_POSITION: &str = "R_NO_POSITION";
 /// REDUCE or CLOSE for more notional than is open. Without this an exit is an unchecked open.
 pub const R_EXIT_EXCEEDS_POSITION: &str = "R_EXIT_EXCEEDS_POSITION";
+
+/// A CLOSE must be for exactly what is open. A smaller CLOSE would still wipe the whole
+/// position from the books, so a CLOSE of the wrong size is refused. Use REDUCE for part.
+pub const R_CLOSE_SIZE_MISMATCH: &str = "R_CLOSE_SIZE_MISMATCH";
+/// A fetcher whose evidence backs the bundle was revoked after the bundle was submitted.
+/// Its items no longer count toward k.
+pub const R_FETCHER_REVOKED: &str = "R_FETCHER_REVOKED";
 
 /// SPEC.md 4.5 says an uncorroborated intent is "recorded as `PAPER_ONLY_UNCORROBORATED`"
 /// in paper mode. We emit `R_UNCORROBORATED` always, and append this marker as a second

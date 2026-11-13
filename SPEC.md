@@ -113,7 +113,7 @@ flowchart LR
 
    Exits (REDUCE/CLOSE) never need evidence. Independence groups are declared in the policy (for example: `exchange-hl`, `exchange-binance-public`, `newswire-a`, `newswire-b`, `onchain-polymarket`); two sources owned by the same publisher are one group.
 5. **Kill switches bypass the LLM.** The Monitor is rule-based (daily loss, stale evidence, verifier failure rate spike, attack-suspect flag when many agents cite the same single-source item) and calls `engage_kill_switch` directly.
-6. **Function-call keys** restrict the Trader account to `submit_intent`, `record_fill`, `record_mark` on the ledger contract. It cannot transfer, cannot call anything else, cannot register fetchers or change the policy.
+6. **Function-call keys** restrict the Trader account to `submit_intent`, `record_fill`, `record_mark` on the ledger contract, and the contract itself accepts `record_mark` only from the owner or the MONITOR. It cannot transfer, cannot call anything else, cannot register fetchers or change the policy.
 7. **Evidence receipts extend the ledger.** A new receipt kind `EVIDENCE` stores `{bundleHash, items: [{evidenceId, sourceGroup, stance, fetchedAt, fetcherKey}], k, sizeMultiplierBps, verifierCodeHash}` and is chained like every other receipt; the `INTENT` receipt that follows carries `evidenceReceiptSeq`.
 
 ### 2A.3 Swarm configurations compared (all paper, same data, same policy limits)
@@ -401,7 +401,7 @@ Single contract, two logical modules. Not upgradable in the hackathon build (no 
 | `submit_evidence(desk_id, bundle, prev_hash) -> ReceiptView` | registered TRADER | verifies signatures, freshness, groups; computes k and size multiplier; appends `EVIDENCE` receipt |
 | `submit_intent(desk_id, intent, prev_hash, equity_usd, decision_hash?, ai_sig_hash?, evidence_seq?) -> ReceiptView` | registered TRADER or BASELINE | checks policy and, if `evidence.required`, the referenced EVIDENCE receipt (same asset, direction, fresh); applies size multiplier; appends `INTENT` with verdict; a breach is a REJECTED receipt (transaction succeeds), not a panic |
 | `record_fill(desk_id, intent_seq, fill, prev_hash) -> ReceiptView` | registered TRADER or BASELINE | intent must be APPROVED and unfilled; fill notional <= intent notional; label rules of 3.4; updates open positions |
-| `record_mark(desk_id, equity_usd, prev_hash, decisions_root?) -> ReceiptView` | registered agent | at most one per 5 minutes per desk; may auto-engage kill switch if `autoOnDailyLoss` |
+| `record_mark(desk_id, equity_usd, prev_hash, decisions_root?) -> ReceiptView` | owner or MONITOR | at most one per 5 minutes per desk; may auto-engage kill switch if `autoOnDailyLoss` |
 | `record_flow(desk_id, amount_usd: String, prev_hash)` | desk owner | deposit (+) or withdrawal (-) of capital, so returns can be time-weighted; `CONTROL` receipt |
 | `engage_kill_switch(desk_id, reason: String)` | desk owner, or MONITOR if `monitorMayEngage` | all new opens REJECTED with `R_KILL_SWITCH`; reduce/close still allowed |
 | `release_kill_switch(desk_id)` | desk owner only | `CONTROL` receipt |

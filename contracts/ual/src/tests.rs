@@ -142,7 +142,9 @@ fn head_hash(c: &Ual) -> String {
 }
 
 fn head_seq(c: &Ual) -> u64 {
-    c.get_head(DESK.to_string()).unwrap()["seq"].as_u64().unwrap()
+    c.get_head(DESK.to_string()).unwrap()["seq"]
+        .as_u64()
+        .unwrap()
 }
 
 fn intent(side: Side, notional: &str) -> Intent {
@@ -308,7 +310,8 @@ fn policy_with_insignificant_whitespace_is_e04() {
     testing_env!(ctx(owner(), T0, NearToken::from_near(1)).build());
     let mut c = Ual::new(owner());
     c.create_desk(DESK.to_string());
-    let spaced = policy_json(true, "1000000000", "200000000").replace(",\"deskId\"", ", \"deskId\"");
+    let spaced =
+        policy_json(true, "1000000000", "200000000").replace(",\"deskId\"", ", \"deskId\"");
     c.commit_policy(DESK.to_string(), spaced);
 }
 
@@ -775,8 +778,22 @@ fn k2_half_size_still_respects_the_position_cap() {
         DESK.to_string(),
         bundle(
             vec![
-                signed_item("newswire-a.example", "newswire-a", EvidenceKind::NEWS, T0 + 500_000_000_000, Stance::SUPPORT, 1),
-                signed_item("hyperliquid", "exchange-hl", EvidenceKind::PRICE, T0 + 550_000_000_000, Stance::SUPPORT, 2),
+                signed_item(
+                    "newswire-a.example",
+                    "newswire-a",
+                    EvidenceKind::NEWS,
+                    T0 + 500_000_000_000,
+                    Stance::SUPPORT,
+                    1,
+                ),
+                signed_item(
+                    "hyperliquid",
+                    "exchange-hl",
+                    EvidenceKind::PRICE,
+                    T0 + 550_000_000_000,
+                    Stance::SUPPORT,
+                    2,
+                ),
             ],
             Direction::LONG,
         ),
@@ -808,9 +825,30 @@ fn k3_three_groups_allows_full_size() {
         DESK.to_string(),
         bundle(
             vec![
-                signed_item("newswire-a.example", "newswire-a", EvidenceKind::NEWS, T0 + 500_000_000_000, Stance::SUPPORT, 1),
-                signed_item("newswire-b.example", "newswire-b", EvidenceKind::NEWS, T0 + 510_000_000_000, Stance::SUPPORT, 2),
-                signed_item("hyperliquid", "exchange-hl", EvidenceKind::PRICE, T0 + 550_000_000_000, Stance::SUPPORT, 3),
+                signed_item(
+                    "newswire-a.example",
+                    "newswire-a",
+                    EvidenceKind::NEWS,
+                    T0 + 500_000_000_000,
+                    Stance::SUPPORT,
+                    1,
+                ),
+                signed_item(
+                    "newswire-b.example",
+                    "newswire-b",
+                    EvidenceKind::NEWS,
+                    T0 + 510_000_000_000,
+                    Stance::SUPPORT,
+                    2,
+                ),
+                signed_item(
+                    "hyperliquid",
+                    "exchange-hl",
+                    EvidenceKind::PRICE,
+                    T0 + 550_000_000_000,
+                    Stance::SUPPORT,
+                    3,
+                ),
             ],
             Direction::LONG,
         ),
@@ -830,8 +868,22 @@ fn two_sources_in_one_group_count_once() {
         DESK.to_string(),
         bundle(
             vec![
-                signed_item("newswire-a.example", "newswire-a", EvidenceKind::NEWS, T0 + 500_000_000_000, Stance::SUPPORT, 1),
-                signed_item("newswire-a.example", "newswire-a", EvidenceKind::NEWS, T0 + 510_000_000_000, Stance::SUPPORT, 2),
+                signed_item(
+                    "newswire-a.example",
+                    "newswire-a",
+                    EvidenceKind::NEWS,
+                    T0 + 500_000_000_000,
+                    Stance::SUPPORT,
+                    1,
+                ),
+                signed_item(
+                    "newswire-a.example",
+                    "newswire-a",
+                    EvidenceKind::NEWS,
+                    T0 + 510_000_000_000,
+                    Stance::SUPPORT,
+                    2,
+                ),
             ],
             Direction::LONG,
         ),
@@ -850,9 +902,30 @@ fn contradicting_group_reduces_k() {
         DESK.to_string(),
         bundle(
             vec![
-                signed_item("newswire-a.example", "newswire-a", EvidenceKind::NEWS, T0 + 500_000_000_000, Stance::SUPPORT, 1),
-                signed_item("newswire-b.example", "newswire-b", EvidenceKind::NEWS, T0 + 505_000_000_000, Stance::SUPPORT, 2),
-                signed_item("hyperliquid", "exchange-hl", EvidenceKind::PRICE, T0 + 550_000_000_000, Stance::CONTRADICT, 3),
+                signed_item(
+                    "newswire-a.example",
+                    "newswire-a",
+                    EvidenceKind::NEWS,
+                    T0 + 500_000_000_000,
+                    Stance::SUPPORT,
+                    1,
+                ),
+                signed_item(
+                    "newswire-b.example",
+                    "newswire-b",
+                    EvidenceKind::NEWS,
+                    T0 + 505_000_000_000,
+                    Stance::SUPPORT,
+                    2,
+                ),
+                signed_item(
+                    "hyperliquid",
+                    "exchange-hl",
+                    EvidenceKind::PRICE,
+                    T0 + 550_000_000_000,
+                    Stance::CONTRADICT,
+                    3,
+                ),
             ],
             Direction::LONG,
         ),
@@ -872,10 +945,24 @@ fn an_undeclared_source_counts_for_nothing() {
         DESK.to_string(),
         bundle(
             vec![
-                signed_item("newswire-a.example", "newswire-a", EvidenceKind::NEWS, T0 + 500_000_000_000, Stance::SUPPORT, 1),
+                signed_item(
+                    "newswire-a.example",
+                    "newswire-a",
+                    EvidenceKind::NEWS,
+                    T0 + 500_000_000_000,
+                    Stance::SUPPORT,
+                    1,
+                ),
                 // Signed by a registered fetcher, but the policy never declared this source,
                 // so it cannot buy corroboration. The gate fails closed.
-                signed_item("random-blog.example", "whatever", EvidenceKind::NEWS, T0 + 505_000_000_000, Stance::SUPPORT, 2),
+                signed_item(
+                    "random-blog.example",
+                    "whatever",
+                    EvidenceKind::NEWS,
+                    T0 + 505_000_000_000,
+                    Stance::SUPPORT,
+                    2,
+                ),
             ],
             Direction::LONG,
         ),
@@ -898,8 +985,22 @@ fn stale_evidence_is_rejected() {
         DESK.to_string(),
         bundle(
             vec![
-                signed_item("newswire-a.example", "newswire-a", EvidenceKind::NEWS, T0 - 1_400_000_000_000, Stance::SUPPORT, 1),
-                signed_item("hyperliquid", "exchange-hl", EvidenceKind::PRICE, T0 + 550_000_000_000, Stance::SUPPORT, 2),
+                signed_item(
+                    "newswire-a.example",
+                    "newswire-a",
+                    EvidenceKind::NEWS,
+                    T0 - 1_400_000_000_000,
+                    Stance::SUPPORT,
+                    1,
+                ),
+                signed_item(
+                    "hyperliquid",
+                    "exchange-hl",
+                    EvidenceKind::PRICE,
+                    T0 + 550_000_000_000,
+                    Stance::SUPPORT,
+                    2,
+                ),
             ],
             Direction::LONG,
         ),
@@ -932,8 +1033,22 @@ fn evidence_that_was_fresh_goes_stale_before_the_intent() {
         DESK.to_string(),
         bundle(
             vec![
-                signed_item("newswire-a.example", "newswire-a", EvidenceKind::NEWS, T0 + 500_000_000_000, Stance::SUPPORT, 1),
-                signed_item("hyperliquid", "exchange-hl", EvidenceKind::PRICE, T0 + 550_000_000_000, Stance::SUPPORT, 2),
+                signed_item(
+                    "newswire-a.example",
+                    "newswire-a",
+                    EvidenceKind::NEWS,
+                    T0 + 500_000_000_000,
+                    Stance::SUPPORT,
+                    1,
+                ),
+                signed_item(
+                    "hyperliquid",
+                    "exchange-hl",
+                    EvidenceKind::PRICE,
+                    T0 + 550_000_000_000,
+                    Stance::SUPPORT,
+                    2,
+                ),
             ],
             Direction::LONG,
         ),
@@ -964,7 +1079,14 @@ fn a_forged_signature_taints_the_whole_bundle() {
     set_ctx(trader(), T0 + 600_000_000_000);
     let head = head_hash(&c);
 
-    let mut tampered = signed_item("newswire-a.example", "newswire-a", EvidenceKind::NEWS, T0 + 500_000_000_000, Stance::SUPPORT, 1);
+    let mut tampered = signed_item(
+        "newswire-a.example",
+        "newswire-a",
+        EvidenceKind::NEWS,
+        T0 + 500_000_000_000,
+        Stance::SUPPORT,
+        1,
+    );
     // Change the content after signing, which is exactly what a fake headline injected into
     // the archive would look like.
     tampered.item.content_hash = hex::encode([0x99u8; 32]);
@@ -974,8 +1096,22 @@ fn a_forged_signature_taints_the_whole_bundle() {
         bundle(
             vec![
                 tampered,
-                signed_item("newswire-b.example", "newswire-b", EvidenceKind::NEWS, T0 + 505_000_000_000, Stance::SUPPORT, 2),
-                signed_item("hyperliquid", "exchange-hl", EvidenceKind::PRICE, T0 + 550_000_000_000, Stance::SUPPORT, 3),
+                signed_item(
+                    "newswire-b.example",
+                    "newswire-b",
+                    EvidenceKind::NEWS,
+                    T0 + 505_000_000_000,
+                    Stance::SUPPORT,
+                    2,
+                ),
+                signed_item(
+                    "hyperliquid",
+                    "exchange-hl",
+                    EvidenceKind::PRICE,
+                    T0 + 550_000_000_000,
+                    Stance::SUPPORT,
+                    3,
+                ),
             ],
             Direction::LONG,
         ),
@@ -1008,7 +1144,14 @@ fn an_unregistered_fetcher_key_is_e19() {
     let mut c = setup(true, "1000000000", "200000000");
     set_ctx(trader(), T0 + 600_000_000_000);
     let head = head_hash(&c);
-    let mut item = signed_item("newswire-a.example", "newswire-a", EvidenceKind::NEWS, T0 + 500_000_000_000, Stance::SUPPORT, 1);
+    let mut item = signed_item(
+        "newswire-a.example",
+        "newswire-a",
+        EvidenceKind::NEWS,
+        T0 + 500_000_000_000,
+        Stance::SUPPORT,
+        1,
+    );
     let other = SigningKey::from_bytes(&[9u8; 32]);
     item.fetcher_key = format!(
         "ed25519:{}",
@@ -1028,7 +1171,14 @@ fn a_revoked_fetcher_key_is_e19() {
     c.submit_evidence(
         DESK.to_string(),
         bundle(
-            vec![signed_item("newswire-a.example", "newswire-a", EvidenceKind::NEWS, T0 + 500_000_000_000, Stance::SUPPORT, 1)],
+            vec![signed_item(
+                "newswire-a.example",
+                "newswire-a",
+                EvidenceKind::NEWS,
+                T0 + 500_000_000_000,
+                Stance::SUPPORT,
+                1,
+            )],
             Direction::LONG,
         ),
         head,
@@ -1063,8 +1213,22 @@ fn evidence_for_the_wrong_asset_or_direction_is_a_mismatch() {
         DESK.to_string(),
         bundle(
             vec![
-                signed_item("newswire-a.example", "newswire-a", EvidenceKind::NEWS, T0 + 500_000_000_000, Stance::SUPPORT, 1),
-                signed_item("hyperliquid", "exchange-hl", EvidenceKind::PRICE, T0 + 550_000_000_000, Stance::SUPPORT, 2),
+                signed_item(
+                    "newswire-a.example",
+                    "newswire-a",
+                    EvidenceKind::NEWS,
+                    T0 + 500_000_000_000,
+                    Stance::SUPPORT,
+                    1,
+                ),
+                signed_item(
+                    "hyperliquid",
+                    "exchange-hl",
+                    EvidenceKind::PRICE,
+                    T0 + 550_000_000_000,
+                    Stance::SUPPORT,
+                    2,
+                ),
             ],
             Direction::SHORT,
         ),
@@ -1111,7 +1275,16 @@ fn more_than_sixteen_items_is_e20() {
     set_ctx(trader(), T0 + 600_000_000_000);
     let head = head_hash(&c);
     let items: Vec<EvidenceItemInput> = (0..17u8)
-        .map(|i| signed_item("newswire-a.example", "newswire-a", EvidenceKind::NEWS, T0 + 500_000_000_000, Stance::SUPPORT, i))
+        .map(|i| {
+            signed_item(
+                "newswire-a.example",
+                "newswire-a",
+                EvidenceKind::NEWS,
+                T0 + 500_000_000_000,
+                Stance::SUPPORT,
+                i,
+            )
+        })
         .collect();
     c.submit_evidence(DESK.to_string(), bundle(items, Direction::LONG), head);
 }
@@ -1123,7 +1296,14 @@ fn a_bundle_from_an_unauthorized_verifier_build_is_rejected() {
     set_ctx(trader(), T0 + 600_000_000_000);
     let head = head_hash(&c);
     let mut b = bundle(
-        vec![signed_item("newswire-a.example", "newswire-a", EvidenceKind::NEWS, T0 + 500_000_000_000, Stance::SUPPORT, 1)],
+        vec![signed_item(
+            "newswire-a.example",
+            "newswire-a",
+            EvidenceKind::NEWS,
+            T0 + 500_000_000_000,
+            Stance::SUPPORT,
+            1,
+        )],
         Direction::LONG,
     );
     b.verifier_code_hash = "c".repeat(64);
@@ -1233,8 +1413,22 @@ fn a_half_sized_approval_cannot_be_filled_at_full_size() {
         DESK.to_string(),
         bundle(
             vec![
-                signed_item("newswire-a.example", "newswire-a", EvidenceKind::NEWS, T0 + 500_000_000_000, Stance::SUPPORT, 1),
-                signed_item("hyperliquid", "exchange-hl", EvidenceKind::PRICE, T0 + 550_000_000_000, Stance::SUPPORT, 2),
+                signed_item(
+                    "newswire-a.example",
+                    "newswire-a",
+                    EvidenceKind::NEWS,
+                    T0 + 500_000_000_000,
+                    Stance::SUPPORT,
+                    1,
+                ),
+                signed_item(
+                    "hyperliquid",
+                    "exchange-hl",
+                    EvidenceKind::PRICE,
+                    T0 + 550_000_000_000,
+                    Stance::SUPPORT,
+                    2,
+                ),
             ],
             Direction::LONG,
         ),
@@ -1471,7 +1665,12 @@ fn there_is_no_method_that_moves_funds() {
     // A structural assertion rather than a behavioural one: this test exists so that adding
     // a transfer to the contract breaks a test rather than slipping through review. The
     // method list below is the one an agent's function-call key is scoped to.
-    let agent_methods = ["submit_evidence", "submit_intent", "record_fill", "record_mark"];
+    let agent_methods = [
+        "submit_evidence",
+        "submit_intent",
+        "record_fill",
+        "record_mark",
+    ];
     for m in agent_methods {
         assert!(
             !m.contains("transfer") && !m.contains("withdraw") && !m.contains("send"),
@@ -1552,8 +1751,22 @@ fn one_evidence_receipt_backs_one_approved_open() {
         DESK.to_string(),
         bundle(
             vec![
-                signed_item("newswire-a.example", "newswire-a", EvidenceKind::NEWS, T0 + 500_000_000_000, Stance::SUPPORT, 1),
-                signed_item("hyperliquid", "exchange-hl", EvidenceKind::PRICE, T0 + 550_000_000_000, Stance::SUPPORT, 2),
+                signed_item(
+                    "newswire-a.example",
+                    "newswire-a",
+                    EvidenceKind::NEWS,
+                    T0 + 500_000_000_000,
+                    Stance::SUPPORT,
+                    1,
+                ),
+                signed_item(
+                    "hyperliquid",
+                    "exchange-hl",
+                    EvidenceKind::PRICE,
+                    T0 + 550_000_000_000,
+                    Stance::SUPPORT,
+                    2,
+                ),
             ],
             Direction::LONG,
         ),
@@ -1609,7 +1822,15 @@ fn an_oversized_client_id_is_refused() {
     let head = head_hash(&c);
     let mut i = intent(Side::OPEN_LONG, "500000000");
     i.client_id = "x".repeat(65);
-    c.submit_intent(DESK.to_string(), i, head, "10000000000".to_string(), None, None, None);
+    c.submit_intent(
+        DESK.to_string(),
+        i,
+        head,
+        "10000000000".to_string(),
+        None,
+        None,
+        None,
+    );
 }
 
 #[test]
@@ -1624,4 +1845,495 @@ fn an_open_cannot_fill_after_the_daily_loss_limit_is_hit() {
     set_ctx(trader(), T0 + 1_000_000_000_000);
     let head = head_hash(&c);
     c.record_fill(DESK.to_string(), seq, sim_fill("500000000"), head);
+}
+
+// ---------------------------------------------------------------- security review fixes
+
+fn two_group_items(a: u8, b: u8) -> Vec<EvidenceItemInput> {
+    vec![
+        signed_item(
+            "newswire-a.example",
+            "newswire-a",
+            EvidenceKind::NEWS,
+            T0 + 500_000_000_000,
+            Stance::SUPPORT,
+            a,
+        ),
+        signed_item(
+            "hyperliquid",
+            "exchange-hl",
+            EvidenceKind::PRICE,
+            T0 + 550_000_000_000,
+            Stance::SUPPORT,
+            b,
+        ),
+    ]
+}
+
+fn submit_ev(c: &mut Ual, items: Vec<EvidenceItemInput>) -> Value {
+    let head = head_hash(c);
+    c.submit_evidence(DESK.to_string(), bundle(items, Direction::LONG), head)
+}
+
+/// Runs `f` and returns the panic message, or None if it did not panic.
+fn panic_message<F: FnOnce()>(f: F) -> Option<String> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(f))
+        .err()
+        .map(|e| {
+            e.downcast_ref::<String>()
+                .cloned()
+                .or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string()))
+                .unwrap_or_default()
+        })
+}
+
+#[test]
+fn the_same_signed_items_in_a_new_bundle_cannot_back_a_second_open() {
+    let mut c = setup(true, "1000000000", "200000000");
+    set_ctx(trader(), T0 + 600_000_000_000);
+    let ev1 = submit_ev(&mut c, two_group_items(1, 2));
+    let first = submit(
+        &mut c,
+        Side::OPEN_LONG,
+        "500000000",
+        Some(ev1["seq"].as_u64().unwrap()),
+    );
+    assert_eq!(verdict_of(&first), "APPROVED");
+
+    // Same signed items, brand new EVIDENCE receipt.
+    let ev2 = submit_ev(&mut c, two_group_items(1, 2));
+    assert!(reasons_of(&ev2).contains(&"R_EVIDENCE_USED".to_string()));
+    assert_eq!(
+        ev2["evidence"]["k"].as_u64().unwrap(),
+        0,
+        "spent items do not count"
+    );
+    assert_eq!(ev2["sizeMultiplierBps"].as_u64().unwrap(), 0);
+    let second = submit(
+        &mut c,
+        Side::OPEN_LONG,
+        "500000000",
+        Some(ev2["seq"].as_u64().unwrap()),
+    );
+    assert_eq!(verdict_of(&second), "REJECTED");
+    // Every item in ev2 is already invalid, so k is 0 and the gate says uncorroborated.
+    assert!(reasons_of(&second).contains(&"R_UNCORROBORATED".to_string()));
+}
+
+#[test]
+fn two_bundles_submitted_before_either_is_spent_still_back_only_one_open() {
+    let mut c = setup(true, "1000000000", "200000000");
+    set_ctx(trader(), T0 + 600_000_000_000);
+    let ev1 = submit_ev(&mut c, two_group_items(1, 2));
+    let ev2 = submit_ev(&mut c, two_group_items(1, 2));
+    assert_eq!(
+        ev2["evidence"]["k"].as_u64().unwrap(),
+        2,
+        "nothing was spent yet"
+    );
+    let first = submit(
+        &mut c,
+        Side::OPEN_LONG,
+        "500000000",
+        Some(ev1["seq"].as_u64().unwrap()),
+    );
+    assert_eq!(verdict_of(&first), "APPROVED");
+    let second = submit(
+        &mut c,
+        Side::OPEN_LONG,
+        "500000000",
+        Some(ev2["seq"].as_u64().unwrap()),
+    );
+    assert_eq!(verdict_of(&second), "REJECTED");
+    assert!(reasons_of(&second).contains(&"R_EVIDENCE_USED".to_string()));
+    assert_eq!(second["sizeMultiplierBps"].as_u64().unwrap(), 0);
+}
+
+#[test]
+fn a_rejected_intent_does_not_spend_its_evidence_items() {
+    let mut c = setup(true, "1000000000", "200000000");
+    set_ctx(trader(), T0 + 600_000_000_000);
+    let ev1 = submit_ev(&mut c, two_group_items(1, 2));
+    // $5,000 against a $1,000 cap is refused, so nothing is spent.
+    let refused = submit(
+        &mut c,
+        Side::OPEN_LONG,
+        "5000000000",
+        Some(ev1["seq"].as_u64().unwrap()),
+    );
+    assert_eq!(verdict_of(&refused), "REJECTED");
+    let ev2 = submit_ev(&mut c, two_group_items(1, 2));
+    assert_eq!(ev2["evidence"]["k"].as_u64().unwrap(), 2);
+}
+
+#[test]
+fn a_fetcher_revoked_after_the_bundle_no_longer_counts_at_intent_time() {
+    let mut c = setup(true, "1000000000", "200000000");
+    set_ctx(trader(), T0 + 600_000_000_000);
+    let ev = submit_ev(&mut c, two_group_items(1, 2));
+    set_ctx(owner(), T0 + 610_000_000_000);
+    c.revoke_fetcher(DESK.to_string(), fetcher_pubkey_str());
+    set_ctx(trader(), T0 + 620_000_000_000);
+    let r = submit(
+        &mut c,
+        Side::OPEN_LONG,
+        "500000000",
+        Some(ev["seq"].as_u64().unwrap()),
+    );
+    assert_eq!(verdict_of(&r), "REJECTED");
+    assert!(reasons_of(&r).contains(&"R_FETCHER_REVOKED".to_string()));
+    assert!(reasons_of(&r).contains(&"R_UNCORROBORATED".to_string()));
+    assert_eq!(r["sizeMultiplierBps"].as_u64().unwrap(), 0);
+}
+
+#[test]
+fn oversized_or_malformed_fill_and_quote_strings_are_refused() {
+    let mut c = setup(false, "1000000000", "200000000");
+    let seq = approve_and_get_seq(&mut c, "500000000");
+    let head = head_hash(&c);
+
+    let mut f = sim_fill("500000000");
+    f.reference = "r".repeat(257);
+    assert!(panic_message(|| {
+        c.record_fill(DESK.to_string(), seq, f, head.clone());
+    })
+    .is_some_and(|m| m.contains("E18_NON_ASCII")));
+    let mut f = sim_fill("500000000");
+    f.price = "9".repeat(65);
+    assert!(panic_message(|| {
+        c.record_fill(DESK.to_string(), seq, f, head.clone());
+    })
+    .is_some_and(|m| m.contains("E18_NON_ASCII")));
+    let mut f = sim_fill("500000000");
+    f.evidence_sha256 = Some("not-a-hash".to_string());
+    assert!(panic_message(|| {
+        c.record_fill(DESK.to_string(), seq, f, head.clone());
+    })
+    .is_some_and(|m| m.contains("E13_BAD_HASH")));
+
+    // quoteRef on an intent.
+    let q = |kind: &str, sha: &str, sig: &str| {
+        let mut i = intent(Side::OPEN_LONG, "100000000");
+        i.quote_ref = Some(QuoteRef {
+            kind: kind.to_string(),
+            sha256: sha.to_string(),
+            signature: sig.to_string(),
+        });
+        i
+    };
+    for (i, want) in [
+        (q(&"k".repeat(65), &"a".repeat(64), "s"), "E18_NON_ASCII"),
+        (q("k", "xyz", "s"), "E13_BAD_HASH"),
+        (q("k", &"a".repeat(64), &"s".repeat(257)), "E18_NON_ASCII"),
+    ] {
+        let head = head_hash(&c);
+        assert!(panic_message(|| {
+            c.submit_intent(
+                DESK.to_string(),
+                i,
+                head,
+                "10000000000".to_string(),
+                None,
+                None,
+                None,
+            );
+        })
+        .is_some_and(|m| m.contains(want)));
+    }
+}
+
+#[test]
+fn oversized_or_malformed_evidence_fields_are_refused() {
+    let mut c = setup(true, "1000000000", "200000000");
+    set_ctx(trader(), T0 + 600_000_000_000);
+    let head = head_hash(&c);
+
+    let mut b = bundle(two_group_items(1, 2), Direction::LONG);
+    b.asset = "A".repeat(65);
+    assert!(panic_message(|| {
+        c.submit_evidence(DESK.to_string(), b, head.clone());
+    })
+    .is_some_and(|m| m.contains("E18_NON_ASCII")));
+
+    // The signature covers the edited field, so the refusal is about the field, not a bad sig.
+    let resign = |mut it: EvidenceItemInput| {
+        let sig = fetcher_key().sign(&it.item.signing_bytes());
+        it.signature = bs58::encode(sig.to_bytes()).into_string();
+        it
+    };
+    type Edit = Box<dyn Fn(&mut EvidenceItemInput)>;
+    let edits: Vec<(Edit, &str)> = vec![
+        (
+            Box::new(|i| i.item.url = format!("https://{}", "u".repeat(300))),
+            "E18_NON_ASCII",
+        ),
+        (
+            Box::new(|i| i.item.source_group = "g".repeat(65)),
+            "E18_NON_ASCII",
+        ),
+        (
+            Box::new(|i| i.item.fetched_at = format!("0{}", i.item.fetched_at)),
+            "E21_MALFORMED_AMOUNT",
+        ),
+        (
+            Box::new(|i| i.item.fetched_at = "9".repeat(60)),
+            "E21_MALFORMED_AMOUNT",
+        ),
+    ];
+    for (edit, want) in edits {
+        let mut items = two_group_items(1, 2);
+        edit(&mut items[0]);
+        items[0] = resign(items[0].clone());
+        let b = bundle(items, Direction::LONG);
+        assert!(
+            panic_message(|| {
+                c.submit_evidence(DESK.to_string(), b, head.clone());
+            })
+            .is_some_and(|m| m.contains(want)),
+            "{want}"
+        );
+    }
+}
+
+#[test]
+fn a_policy_may_declare_at_most_32_sources() {
+    let with_sources = |n: usize| {
+        // "hyperliquid" plus n-1 filler sources, in the first group.
+        let mut list = vec!["\"hyperliquid\"".to_string()];
+        list.extend((1..n).map(|i| format!("\"s{i:02}.example\"")));
+        policy_json(true, "1000000000", "200000000").replace(
+            r#""sources":["hyperliquid"]"#,
+            &format!(r#""sources":[{}]"#, list.join(",")),
+        )
+    };
+    // The fixture already has 2 other sources, so 30 here makes 32 and 31 makes 33.
+    assert!(crate::policy::Policy::parse_and_validate(&with_sources(30), DESK).is_ok());
+    assert_eq!(
+        crate::policy::Policy::parse_and_validate(&with_sources(31), DESK).err(),
+        Some("E05_POLICY_INVALID")
+    );
+}
+
+#[test]
+fn a_desk_may_commit_at_most_16_policies() {
+    let mut c = setup(true, "1000000000", "200000000");
+    set_ctx(owner(), T0 + 100_000_000_000);
+    // setup committed one. Fifteen more fit.
+    for _ in 0..15 {
+        c.commit_policy(
+            DESK.to_string(),
+            policy_json(true, "1000000000", "200000000"),
+        );
+    }
+    let msg = panic_message(|| {
+        c.commit_policy(
+            DESK.to_string(),
+            policy_json(true, "1000000000", "200000000"),
+        );
+    });
+    assert!(msg.is_some_and(|m| m.contains("E05_POLICY_INVALID")));
+}
+
+#[test]
+fn a_close_must_be_for_exactly_what_is_open() {
+    let mut c = setup(false, "1000000000", "200000000");
+    seed_position(&mut c, "500000000");
+    set_ctx(trader(), T0 + 600_000_000_000);
+    let small = submit(&mut c, Side::CLOSE, "1", None);
+    assert_eq!(verdict_of(&small), "REJECTED");
+    assert!(reasons_of(&small).contains(&"R_CLOSE_SIZE_MISMATCH".to_string()));
+    let exact = submit(&mut c, Side::CLOSE, "500000000", None);
+    assert_eq!(verdict_of(&exact), "APPROVED");
+}
+
+#[test]
+#[should_panic(expected = "E22_FILL_NOT_PERMITTED")]
+fn a_close_fill_smaller_than_the_open_position_is_refused() {
+    let mut c = setup(false, "1000000000", "200000000");
+    seed_position(&mut c, "500000000");
+    set_ctx(trader(), T0 + 600_000_000_000);
+    let r = submit(&mut c, Side::CLOSE, "500000000", None);
+    let seq = r["seq"].as_u64().unwrap();
+    // The position grows before the fill lands, so a $500 fill no longer closes it.
+    let mut d = c.desks.get(DESK).cloned().unwrap();
+    d.open_positions[0].notional_usd = "900000000".to_string();
+    c.desks.insert(DESK.to_string(), d);
+    let head = head_hash(&c);
+    c.record_fill(DESK.to_string(), seq, sim_fill("500000000"), head);
+}
+
+#[test]
+#[should_panic(expected = "E11_ALREADY_FILLED")]
+fn one_settlement_reference_cannot_back_two_fills() {
+    let mut c = setup(false, "1000000000", "200000000");
+    let first = approve_and_get_seq(&mut c, "100000000");
+    let head = head_hash(&c);
+    c.record_fill(DESK.to_string(), first, sim_fill("100000000"), head);
+    set_ctx(trader(), T0 + 700_000_000_000);
+    let head = head_hash(&c);
+    let r = c.submit_intent(
+        DESK.to_string(),
+        intent(Side::OPEN_LONG, "100000000"),
+        head,
+        "10000000000".to_string(),
+        None,
+        None,
+        None,
+    );
+    let second = r["seq"].as_u64().unwrap();
+    let head = head_hash(&c);
+    // Same kind, same reference, different intent.
+    c.record_fill(DESK.to_string(), second, sim_fill("100000000"), head);
+}
+
+/// Fill a reference on DESK, then cite it again on a second desk owned by `other_owner`.
+fn reuse_reference_on_a_second_desk(other_owner: AccountId) {
+    const OTHER: &str = "other-desk";
+    let mut c = setup(false, "1000000000", "200000000");
+    let first = approve_and_get_seq(&mut c, "100000000");
+    let head = head_hash(&c);
+    c.record_fill(DESK.to_string(), first, sim_fill("100000000"), head);
+
+    // A second desk with its own policy and mark, owned by `other_owner`.
+    testing_env!(ctx(other_owner.clone(), T0, NearToken::from_near(1)).build());
+    c.create_desk(OTHER.to_string());
+    c.commit_policy(
+        OTHER.to_string(),
+        policy_json(false, "1000000000", "200000000")
+            .replace(r#""deskId":"yk-desk""#, r#""deskId":"other-desk""#),
+    );
+    c.register_agent(OTHER.to_string(), trader(), "TRADER".to_string());
+    let head = c.get_head(OTHER.to_string()).unwrap()["hash"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    c.record_mark(OTHER.to_string(), "10000000000".to_string(), head, None);
+
+    set_ctx(trader(), T0 + 700_000_000_000);
+    let head = c.get_head(OTHER.to_string()).unwrap()["hash"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let r = c.submit_intent(
+        OTHER.to_string(),
+        intent(Side::OPEN_LONG, "100000000"),
+        head,
+        "10000000000".to_string(),
+        None,
+        None,
+        None,
+    );
+    assert_eq!(verdict_of(&r), "APPROVED");
+    let head = c.get_head(OTHER.to_string()).unwrap()["hash"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    // The very reference desk one already spent.
+    let f = c.record_fill(
+        OTHER.to_string(),
+        r["seq"].as_u64().unwrap(),
+        sim_fill("100000000"),
+        head,
+    );
+    assert_eq!(f["kind"].as_str().unwrap(), "FILL");
+}
+
+/// One owner cannot cite the same venue tx on two of its desks.
+#[test]
+#[should_panic(expected = "E11_ALREADY_FILLED")]
+fn the_same_owner_cannot_reuse_a_settlement_reference_on_another_desk() {
+    reuse_reference_on_a_second_desk(owner());
+}
+
+/// The key is per owner, so a stranger's desk cannot front-run and burn this owner's reference,
+/// and this owner's fill does not block the stranger. Cross-owner reuse is a known limit.
+#[test]
+fn another_owner_is_not_blocked_by_this_owners_settlement_reference() {
+    reuse_reference_on_a_second_desk(stranger());
+}
+
+#[test]
+#[should_panic(expected = "E23_POSITIONS_OPEN")]
+fn the_mode_cannot_change_while_a_position_is_open() {
+    let mut c = setup(false, "1000000000", "200000000");
+    seed_position(&mut c, "500000000");
+    set_ctx(owner(), T0 + 600_000_000_000);
+    c.set_mode(DESK.to_string(), "live".to_string());
+}
+
+#[test]
+fn the_mode_can_change_once_the_desk_is_flat() {
+    let mut c = setup(false, "1000000000", "200000000");
+    set_ctx(owner(), T0 + 600_000_000_000);
+    c.set_mode(DESK.to_string(), "live".to_string());
+    assert_eq!(c.get_desk(DESK.to_string()).unwrap().mode, Mode::Live);
+}
+
+#[test]
+fn a_trader_cannot_record_a_mark_but_the_owner_and_monitor_can() {
+    let mut c = setup(false, "1000000000", "200000000");
+    set_ctx(trader(), T0 + 600_000_000_000);
+    let head = head_hash(&c);
+    let msg = panic_message(|| {
+        c.record_mark(DESK.to_string(), "99999999999".to_string(), head, None);
+    });
+    assert!(msg.is_some_and(|m| m.contains("E02_NOT_AGENT")));
+
+    set_ctx(monitor(), T0 + 600_000_000_000);
+    let head = head_hash(&c);
+    let m = c.record_mark(DESK.to_string(), "10000000000".to_string(), head, None);
+    assert_eq!(m["kind"].as_str().unwrap(), "MARK");
+    set_ctx(owner(), T0 + 1_000_000_000_000);
+    let head = head_hash(&c);
+    let m = c.record_mark(DESK.to_string(), "10000000000".to_string(), head, None);
+    assert_eq!(m["kind"].as_str().unwrap(), "MARK");
+}
+
+#[test]
+fn a_zero_notional_is_refused_on_intents_and_fills() {
+    let mut c = setup(false, "1000000000", "200000000");
+    set_ctx(trader(), T0 + 600_000_000_000);
+    let head = head_hash(&c);
+    let msg = panic_message(|| {
+        c.submit_intent(
+            DESK.to_string(),
+            intent(Side::OPEN_LONG, "0"),
+            head,
+            "10000000000".to_string(),
+            None,
+            None,
+            None,
+        );
+    });
+    assert!(msg.is_some_and(|m| m.contains("E21_MALFORMED_AMOUNT")));
+
+    let seq = approve_and_get_seq(&mut c, "500000000");
+    let head = head_hash(&c);
+    let msg = panic_message(|| {
+        c.record_fill(DESK.to_string(), seq, sim_fill("0"), head);
+    });
+    assert!(msg.is_some_and(|m| m.contains("E21_MALFORMED_AMOUNT")));
+}
+
+#[test]
+fn negative_zero_is_not_a_spelling_of_zero() {
+    assert_eq!(parse_micro_usd("-0"), None);
+    assert_eq!(parse_micro_usd("0"), Some(0));
+    assert_eq!(parse_micro_usd("-1"), Some(-1));
+}
+
+#[test]
+fn the_kill_switch_still_engages_while_the_contract_is_paused() {
+    let mut c = setup(false, "1000000000", "200000000");
+    set_ctx(owner(), T0 + 600_000_000_000);
+    c.pause();
+    set_ctx(monitor(), T0 + 610_000_000_000);
+    c.engage_kill_switch(DESK.to_string(), "brake".to_string());
+    assert!(c.get_desk(DESK.to_string()).unwrap().kill_switch);
+}
+
+#[test]
+fn get_receipts_does_not_overflow_on_a_huge_start() {
+    let c = setup(false, "1000000000", "200000000");
+    assert!(c.get_receipts(DESK.to_string(), u64::MAX, 100).is_empty());
 }
