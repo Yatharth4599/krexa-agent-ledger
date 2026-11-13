@@ -1,0 +1,30 @@
+{
+  "cueLog": [
+    "synthetic-wire-a.example: cues=[breaking-tag,named-source] score=2",
+    "synthetic-wire-b.example: cues=[breaking-tag,named-source] score=2"
+  ],
+  "newsScore": 4,
+  "avgMomentum": -93,
+  "priceDirection": 0,
+  "combined": 1,
+  "thesis": {
+    "asset": "BTC",
+    "direction": "LONG",
+    "confidence": 5500,
+    "horizonMin": 240,
+    "maxNotionalUsd": "500000000"
+  },
+  "order": {
+    "action": "OPEN_LONG",
+    "asset": "BTC",
+    "notionalUsd": "500000000"
+  },
+  "citations": [
+    "b3dd5fc3bc35f8393148f043c697284b0f4849bb6ff34a2f50db2c0535fb33a8",
+    "b3dd5fc3bc35f8393148f043c697284b0f4849bb6ff34a2f50db2c0535fb33a8",
+    "aae612be33a1bcda57c9d5b9a7f15634241545a2e07cfeb1f42d06021c95e1a3",
+    "68a9383ef9c792bea2571dcaa7c833a186ea8d60b521fadcc15ce1dda9b772ad",
+    "48fac0e4ada5b13489f89faf482e4bc16acba27039c300779afe0f04ec960140",
+    "1b98a1cb036416bc5349bc6b02eaf8c82fd79502f6f94d329159c4557a23bad6"
+  ]
+}

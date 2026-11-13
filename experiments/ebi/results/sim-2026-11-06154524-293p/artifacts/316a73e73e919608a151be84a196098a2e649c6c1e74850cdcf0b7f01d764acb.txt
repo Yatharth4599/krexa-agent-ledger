@@ -1,0 +1,1 @@
+{"attack":"two-group-fake/breaking-tag","gaps":["polymarket-gamma"],"market":{"asset":"BTC","momentumBpsByVenue":{"binance-public":156,"coinbase-public":-162,"hyperliquid":154,"kraken-public":94},"pricesByVenue":{"binance-public":"74466.39000000","coinbase-public":"74387.84","hyperliquid":"74432.5","kraken-public":"74389.60000"}},"priorAction":"HOLD","ts":"1794421800023000000"}

@@ -1,0 +1,1 @@
+{"attack":null,"gaps":["polymarket-gamma"],"market":{"asset":"BTC","momentumBpsByVenue":{"binance-public":-267,"coinbase-public":-537,"hyperliquid":-262,"kraken-public":-321},"pricesByVenue":{"binance-public":"71614.00000000","coinbase-public":"71553.84","hyperliquid":"71607.5","kraken-public":"71555.60000"}},"priorAction":"SHORT","ts":"1794495599997000000"}

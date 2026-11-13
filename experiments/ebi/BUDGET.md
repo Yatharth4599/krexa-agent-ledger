@@ -1,5 +1,16 @@
 # LLM budget for the full runs
 
+> **Correction, 13 Nov 2026.** The point counts below are a plan from 7 Nov and the archive
+> never reached them. The recorder lost about two thirds of its snapshots to machine sleep, so
+> **670 was never reachable** and the run that actually happened used **293 points**. The cost
+> model per point still holds; only the multiplier was wrong. Measurement and cause are in
+> [docs/SCHEDULED_RUNS.md](../../docs/SCHEDULED_RUNS.md), and the run's own count is in
+> `run.json` and `docs/RESULTS.md`, which are the numbers to trust over anything in this file.
+>
+> Also note `.env` currently sets `LLM_DAILY_BUDGET_USD=5`, not the approved 60. A model run
+> would stop at $5, part-way, and label itself accordingly. YK raises it or does not; an agent
+> does not raise a spend cap on its own.
+
 ## Approved
 
 YK approved on 7 Nov 2026:

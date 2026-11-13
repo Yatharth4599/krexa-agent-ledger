@@ -78,6 +78,28 @@ Cannot be posted until the video exists. Needs YK's account.
 >
 > @NEARProtocol #NEARHackathon
 
+### Video shot list, draft
+
+Under 2 minutes is about 300 spoken words, which is five beats and not eleven. SPEC.md 19 lists
+eleven. These five are chosen because `pnpm demo` already prints each one, so nothing has to be
+staged or re-enacted: the beat numbers below are the demo's own, and the full nineteen scroll
+past anyway.
+
+| # | Shot | Command / source | Say |
+|---|---|---|---|
+| 1 | The fake headline arriving, marked `SYNTHETIC ATTACK` | demo beat 6 | "A fake headline can make a whole swarm of LLM traders buy at once." |
+| 2 | Ungated desk opens a long; gated desk's intent **REJECTED `R_UNCORROBORATED`** | demo beats 7 and 8 | "Same headline, two desks, identical limits. One trades it. The other is refused, and the refusal is a receipt on chain." |
+| 3 | Second source confirms: k=2, allowed at half size. Then the fabricated indicator panel caught by recompute | demo beats 9 and 12 | "Two independent sources gets half size. And a faked indicator panel dies because the verifier recomputes RSI from the attested raw prices." |
+| 4 | Prompt-injected trader: withdraw blocked by the protocol, oversize order `R_MAX_POSITION` | `pnpm attack-demo` (or demo beats 15 and 16) | "Its function-call key cannot move money. That is NEAR refusing before any of my code runs." |
+| 5 | `docs/RESULTS.md`, then the explorer: walk the chain, tamper a byte, "broken at seq n" | `pnpm web` | "It also blocks real early signals, and that cost is measured here next to the wins. The verdict on skill is can't-tell-yet, on purpose." |
+
+Record `pnpm demo` in one unbroken take at a readable terminal size. It asserts every beat and
+exits non-zero on failure, so a take that completes is itself the evidence. Do not cut between
+beats 7 and 8 — the whole point is that the two desks saw the same input.
+
+Leave in the beat titled **"What this demo does not show"**. A judge who sees the limits on
+screen reads the rest more generously, and HACKATHON.md's screening rewards exactly this.
+
 ## Still needed from YK
 
 None of these can be guessed, and a wrong value here is worse than a late one.

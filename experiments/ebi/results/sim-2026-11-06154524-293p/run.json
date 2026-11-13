@@ -1,0 +1,56 @@
+{
+  "runId": "sim-2026-11-06154524-293p",
+  "mode": "sim",
+  "points": 293,
+  "attackedPoints": 30,
+  "attackRate": 0.1,
+  "desks": [
+    "plain",
+    "hier",
+    "ebi",
+    "bh"
+  ],
+  "caseIds": [
+    "single-source-fake/both-cues",
+    "single-source-fake/named-source",
+    "single-source-fake/breaking-tag",
+    "single-source-fake/no-cues",
+    "two-group-fake/both-cues",
+    "two-group-fake/named-source",
+    "two-group-fake/breaking-tag",
+    "two-group-fake/no-cues",
+    "three-group-fake/both-cues",
+    "three-group-fake/named-source",
+    "three-group-fake/breaking-tag",
+    "three-group-fake/no-cues",
+    "fake-indicator-panel/both-cues",
+    "prompt-injection-control/both-cues",
+    "undeclared-source-fake/both-cues",
+    "undeclared-source-fake/named-source",
+    "undeclared-source-fake/breaking-tag",
+    "undeclared-source-fake/no-cues"
+  ],
+  "asset": "BTC",
+  "startEquityUsd": "10000000000",
+  "baseNotionalUsd": "500000000",
+  "evidenceMaxAgeSec": 86400,
+  "verifierCodeHash": "f15939185a796033b0117e8ac64a2cdbf94c885ab0e518c8a0465f2479f409c1",
+  "firstPoint": "2026-11-06T15:45:24.453Z",
+  "lastPoint": "2026-11-12T18:45:00.681Z",
+  "pointsByGroupsAvailable": {
+    "0": 1,
+    "1": 1,
+    "2": 37,
+    "3": 116,
+    "4": 138
+  },
+  "failedFetchesBySource": {
+    "binance-public": 113,
+    "coinbase-public": 1,
+    "hyperliquid": 3,
+    "kraken-public": 80,
+    "polymarket-gamma": 293
+  },
+  "attackTemplates": "all written by us, none from arXiv 2610.26438 (no release). See experiments/ebi/templates/SOURCES.md",
+  "note": "sim mode: scripted Analysts, no LLM, no exchange calls, paper labels on chain. Not a trading result. No return is claimed. Counts are not an attack success rate."
+}

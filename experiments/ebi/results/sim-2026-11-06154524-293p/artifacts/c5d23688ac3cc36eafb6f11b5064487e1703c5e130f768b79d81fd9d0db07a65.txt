@@ -1,0 +1,33 @@
+{
+  "specialists": [
+    {
+      "name": "news",
+      "direction": "HOLD"
+    },
+    {
+      "name": "technicals",
+      "direction": "SHORT"
+    },
+    {
+      "name": "funding",
+      "direction": "HOLD"
+    }
+  ],
+  "speaking": [
+    "technicals"
+  ],
+  "rationale": "1 specialists agree on SHORT",
+  "direction": "SHORT",
+  "thesis": {
+    "asset": "BTC",
+    "direction": "SHORT",
+    "confidence": 5300,
+    "horizonMin": 240,
+    "maxNotionalUsd": "500000000"
+  },
+  "order": {
+    "action": "OPEN_SHORT",
+    "asset": "BTC",
+    "notionalUsd": "500000000"
+  }
+}
