@@ -665,7 +665,7 @@ impl Ual {
         if let Some(h) = &fill.evidence_sha256 {
             require(is_hex64(h), E13_BAD_HASH);
         }
-        let ref_key = fill_ref_key(&fill);
+        let ref_key = fill_ref_key(&desk_id, &fill);
         require(self.filled.get(&ref_key).is_none(), E11_ALREADY_FILLED);
 
         // Label rules, SPEC.md 3.4. A simulated fill on a live desk, or a settled fill on a
@@ -1336,12 +1336,12 @@ fn policy_slot_key(desk_id: &str, n: u32) -> String {
     format!("{desk_id}:{n}:pol")
 }
 
-/// "<sha256(kind:ref)>:fr" marks a settlement reference as claimed by a fill. Global, not
-/// per desk: one settlement cannot back two fills anywhere on this contract. The hash is
-/// longer than any desk id, so this cannot collide with a desk-scoped key.
-fn fill_ref_key(fill: &FillRef) -> String {
+/// "<deskId>:<sha256(kind:ref)>:fr" marks a settlement reference as claimed by a fill on that
+/// desk. Per desk on purpose: a contract-wide key would let any desk front-run and burn
+/// another desk's real venue tx reference. Cross-desk reuse is a known limit (THREAT_MODEL.md).
+fn fill_ref_key(desk_id: &str, fill: &FillRef) -> String {
     let digest = sha256_hex(format!("{}:{}", fill.kind.as_str(), fill.reference).as_bytes());
-    format!("{digest}:fr")
+    format!("{desk_id}:{digest}:fr")
 }
 
 /// Open notional on one asset and venue, across both directions.

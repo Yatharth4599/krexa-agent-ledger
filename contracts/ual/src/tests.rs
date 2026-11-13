@@ -2186,6 +2186,60 @@ fn one_settlement_reference_cannot_back_two_fills() {
     c.record_fill(DESK.to_string(), second, sim_fill("100000000"), head);
 }
 
+/// The reference key is per desk, so another desk cannot front-run and burn a real venue tx
+/// reference. Cross-desk reuse is a documented known limit.
+#[test]
+fn the_same_settlement_reference_is_allowed_on_a_different_desk() {
+    const OTHER: &str = "other-desk";
+    let mut c = setup(false, "1000000000", "200000000");
+    let first = approve_and_get_seq(&mut c, "100000000");
+    let head = head_hash(&c);
+    c.record_fill(DESK.to_string(), first, sim_fill("100000000"), head);
+
+    // A second desk, same owner and trader, its own policy and mark.
+    testing_env!(ctx(owner(), T0, NearToken::from_near(1)).build());
+    c.create_desk(OTHER.to_string());
+    c.commit_policy(
+        OTHER.to_string(),
+        policy_json(false, "1000000000", "200000000")
+            .replace(r#""deskId":"yk-desk""#, r#""deskId":"other-desk""#),
+    );
+    c.register_agent(OTHER.to_string(), trader(), "TRADER".to_string());
+    let head = c.get_head(OTHER.to_string()).unwrap()["hash"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    c.record_mark(OTHER.to_string(), "10000000000".to_string(), head, None);
+
+    set_ctx(trader(), T0 + 700_000_000_000);
+    let head = c.get_head(OTHER.to_string()).unwrap()["hash"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let r = c.submit_intent(
+        OTHER.to_string(),
+        intent(Side::OPEN_LONG, "100000000"),
+        head,
+        "10000000000".to_string(),
+        None,
+        None,
+        None,
+    );
+    assert_eq!(verdict_of(&r), "APPROVED");
+    let head = c.get_head(OTHER.to_string()).unwrap()["hash"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    // The very reference desk one already spent.
+    let f = c.record_fill(
+        OTHER.to_string(),
+        r["seq"].as_u64().unwrap(),
+        sim_fill("100000000"),
+        head,
+    );
+    assert_eq!(f["kind"].as_str().unwrap(), "FILL");
+}
+
 #[test]
 #[should_panic(expected = "E23_POSITIONS_OPEN")]
 fn the_mode_cannot_change_while_a_position_is_open() {

@@ -466,12 +466,28 @@ async function run(worker: Worker): Promise<void> {
 
   // ---------------------------------------------------------------- three groups
   beat("Three independent groups agree, so full size is allowed");
+  // The half-size open above spent the items it cited, per desk and by content hash, so this
+  // bundle has to carry newly fetched items. Resubmitting the same signed items would count
+  // for nothing: that is the replay the contract now refuses.
+  const refetched = (content: string, kind: "NEWS" | "PRICE", source: string, group: string, url: string) =>
+    signEvidenceItem(
+      buildEvidencePayload({ content, kind, source, sourceGroup: group, url, fetchedAtNs: nowNs() }),
+      Buffer.from(fetcher.secretKeyHex, "hex"),
+      "SUPPORT",
+    );
   const threeGroups: EvidenceBundle = {
     asset: "BTC",
     direction: "LONG",
     verifierCodeHash,
     items: [
-      ...corroborated.items,
+      refetched(
+        `${FAKE_HEADLINE} (second report)`,
+        "NEWS",
+        "newswire-a.example",
+        "newswire-a",
+        "https://newswire-a.example/breaking-2",
+      ),
+      refetched(`${HL_PRICE_SNAPSHOT}\n`, "PRICE", "hyperliquid", "exchange-hl", "https://api.hyperliquid.xyz/info"),
       signEvidenceItem(
         buildEvidencePayload({
           content: NEWSWIRE_B_CONFIRMS,
@@ -618,7 +634,8 @@ async function run(worker: Worker): Promise<void> {
     asset: "BTC",
     direction: "LONG",
     verifierCodeHash,
-    items: [tampered, corroborated.items[1]!, threeGroups.items[2]!],
+    // Unspent items only: the half-size open spent the ones in `corroborated`.
+    items: [tampered, threeGroups.items[1]!, threeGroups.items[2]!],
   };
   const evBad = await ebi.submitEvidence(DESK_EBI, tamperedBundle, { allowBadSignatures: true });
   const badSummary = evBad.evidence as Record<string, unknown>;
