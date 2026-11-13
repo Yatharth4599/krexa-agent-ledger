@@ -1,0 +1,5 @@
+agent: scripted/cue-weighted@1
+asset: BTC
+config: momentumThresholdBps=100 requiredCues=1 baseNotionalUsd=500000000
+prices: coinbase-public=75642.3@3bps hyperliquid=75733.5@-7bps kraken-public=75644.80000@-13bps
+news:

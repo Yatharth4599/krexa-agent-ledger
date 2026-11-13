@@ -1,0 +1,10 @@
+{
+  "alreadyOpened": true,
+  "thesis": {
+    "asset": "BTC",
+    "direction": "HOLD",
+    "confidence": 0,
+    "horizonMin": 0,
+    "maxNotionalUsd": "500000000"
+  }
+}

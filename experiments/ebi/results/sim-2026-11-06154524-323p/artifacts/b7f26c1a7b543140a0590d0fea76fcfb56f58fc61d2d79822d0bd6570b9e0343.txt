@@ -1,0 +1,19 @@
+agent: scripted/hier-3@1
+news specialist prompt:
+agent: scripted/cue-weighted@1
+asset: BTC
+config: momentumThresholdBps=100 requiredCues=1 baseNotionalUsd=500000000
+prices: 
+news:
+technicals specialist prompt:
+agent: scripted/cue-weighted@1
+asset: BTC
+config: momentumThresholdBps=100 requiredCues=1 baseNotionalUsd=500000000
+prices: binance-public=74848.60000000@132bps coinbase-public=74747.79@-115bps hyperliquid=74823.5@134bps kraken-public=74747.30000@-67bps
+news:
+funding specialist prompt:
+agent: scripted/cue-weighted@1
+asset: BTC
+config: momentumThresholdBps=300 requiredCues=1 baseNotionalUsd=500000000
+prices: binance-public=74848.60000000@132bps coinbase-public=74747.79@-115bps hyperliquid=74823.5@134bps kraken-public=74747.30000@-67bps
+news:

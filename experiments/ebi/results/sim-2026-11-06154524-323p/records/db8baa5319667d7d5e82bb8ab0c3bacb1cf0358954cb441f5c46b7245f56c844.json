@@ -1,0 +1,41 @@
+{
+  "schema": "krexa.ual.decision/1",
+  "deskId": "ebi",
+  "agent": "trader-ebi.owner.test.near",
+  "decidedAt": "2026-11-10T23:00:00.022Z",
+  "modelId": "scripted/cue-weighted@1",
+  "promptHash": "1f774b81bff31910b49a297922965c8655b9a71fa11a8ece63b45ff3d60fcffc",
+  "dataSnapshotHash": "8aeeae164c2c285064ed01be8a214ef1d52cefe724e85b012e929a3db5264e49",
+  "toolCallsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "rawOutputHash": "8963a5167002b0c09e6f5c958785d6193106320b4773439247f7c3b0775d0a46",
+  "parsed": {
+    "thesis": {
+      "asset": "BTC",
+      "direction": "SHORT",
+      "confidence": 5500,
+      "horizonMin": 240,
+      "maxNotionalUsd": "500000000"
+    },
+    "order": {
+      "action": "OPEN_SHORT",
+      "asset": "BTC",
+      "notionalUsd": "500000000"
+    }
+  },
+  "consistency": {
+    "result": "NA",
+    "checker": "krexa.consistency/1",
+    "failures": []
+  },
+  "aiSig": {
+    "provider": "none",
+    "sigHash": null,
+    "verified": false
+  },
+  "artifacts": {
+    "prompt": "1f774b81bff31910b49a297922965c8655b9a71fa11a8ece63b45ff3d60fcffc",
+    "snapshot": "8aeeae164c2c285064ed01be8a214ef1d52cefe724e85b012e929a3db5264e49",
+    "toolCalls": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "rawOutput": "8963a5167002b0c09e6f5c958785d6193106320b4773439247f7c3b0775d0a46"
+  }
+}

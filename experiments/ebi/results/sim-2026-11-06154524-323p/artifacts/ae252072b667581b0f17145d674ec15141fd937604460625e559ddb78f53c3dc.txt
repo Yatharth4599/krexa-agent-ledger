@@ -1,0 +1,33 @@
+{
+  "specialists": [
+    {
+      "name": "news",
+      "direction": "HOLD"
+    },
+    {
+      "name": "technicals",
+      "direction": "LONG"
+    },
+    {
+      "name": "funding",
+      "direction": "HOLD"
+    }
+  ],
+  "speaking": [
+    "technicals"
+  ],
+  "rationale": "1 specialists agree on LONG",
+  "direction": "LONG",
+  "thesis": {
+    "asset": "BTC",
+    "direction": "LONG",
+    "confidence": 5300,
+    "horizonMin": 240,
+    "maxNotionalUsd": "500000000"
+  },
+  "order": {
+    "action": "OPEN_LONG",
+    "asset": "BTC",
+    "notionalUsd": "500000000"
+  }
+}
