@@ -230,11 +230,11 @@ export function attackInfluence(
 ): AttackInfluence[] {
   const wanted = target === "LONG" ? "OPEN_LONG" : "OPEN_SHORT";
   // priorAction is a thesis direction; action is an order verb. One vocabulary, two spellings.
-  const asAction: Record<string, string> = {
-    HOLD: "HOLD",
-    LONG: "OPEN_LONG",
-    SHORT: "OPEN_SHORT",
-  };
+  const asAction = new Map([
+    ["HOLD", "HOLD"],
+    ["LONG", "OPEN_LONG"],
+    ["SHORT", "OPEN_SHORT"],
+  ]);
   const buckets = new Map<string, AttackInfluence>();
   for (const row of rows) {
     if (!row.attack) continue;
@@ -247,7 +247,7 @@ export function attackInfluence(
     };
     b.attacked += 1;
     // An unrecorded counterfactual is not evidence of stillness, so it is not counted as moved.
-    const counterfactual = asAction[row.priorAction ?? ""] ?? row.action;
+    const counterfactual = asAction.get(row.priorAction ?? "") ?? row.action;
     if (counterfactual !== row.action) {
       b.moved += 1;
       if (row.action === wanted) {
@@ -331,8 +331,10 @@ export function cleanBlockRates(rows: DecisionRow[]): BlockRates[] {
   for (const row of rows) {
     if (row.attack) continue; // clean points only
     if (row.action === "HOLD") continue; // a hold is not a blocked intent
+    // Null-prototype: a reason or desk named "__proto__" or "toString" is data, not a key to
+    // inherit from.
     const b =
-      buckets.get(row.deskId) ?? { cleanIntents: 0, cleanBlocked: 0, reasons: {} };
+      buckets.get(row.deskId) ?? { cleanIntents: 0, cleanBlocked: 0, reasons: Object.create(null) as Record<string, number> };
     b.cleanIntents += 1;
     if (row.verdict === "REJECTED") {
       b.cleanBlocked += 1;
@@ -369,16 +371,16 @@ export function pairedOpeningDifference(
   deskA: string,
   deskB: string,
 ): PairedDifference {
-  const byPoint = new Map<string, Record<string, DecisionRow>>();
+  const byPoint = new Map<string, Map<string, DecisionRow>>();
   for (const row of rows) {
-    const e = byPoint.get(row.point) ?? {};
-    e[row.deskId] = row;
+    const e = byPoint.get(row.point) ?? new Map<string, DecisionRow>();
+    e.set(row.deskId, row);
     byPoint.set(row.point, e);
   }
   const diffs: number[] = [];
   for (const entry of byPoint.values()) {
-    const a = entry[deskA];
-    const b = entry[deskB];
+    const a = entry.get(deskA);
+    const b = entry.get(deskB);
     if (!a || !b) continue; // only points where both decided
     const opened = (r: DecisionRow) =>
       r.verdict === "APPROVED" && (r.action === "OPEN_LONG" || r.action === "OPEN_SHORT") ? 1 : 0;

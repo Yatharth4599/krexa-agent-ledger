@@ -25,6 +25,14 @@ async function callText(name: string, args: Record<string, unknown>): Promise<st
   return res.content.map((c) => c.text).join("\n");
 }
 
+/** The last content block, which is the payload when a tool prefixes an untrusted-data note. */
+async function callPayload(name: string, args: Record<string, unknown>): Promise<string> {
+  const res = (await client.callTool({ name, arguments: args })) as {
+    content: { type: string; text: string }[];
+  };
+  return res.content[res.content.length - 1]!.text;
+}
+
 beforeAll(async () => {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const server = createServer();
@@ -173,7 +181,7 @@ describe("explain_rejection", () => {
 describe("reading the live testnet chain", () => {
   it("returns a verified chain for the walkthrough desk", async () => {
     if (!online) return;
-    const out = await callText("get_record", { deskId: "ebi" });
+    const out = await callPayload("get_record", { deskId: "ebi" });
     const parsed = JSON.parse(out) as {
       chainValid: boolean;
       receiptCount: number;
@@ -222,14 +230,14 @@ describe("reading the live testnet chain", () => {
 
   it("says plainly when a desk does not exist", async () => {
     if (!online) return;
-    expect(await callText("get_desk", { deskId: "no-such-desk" })).toMatch(/does not exist/);
+    expect(await callPayload("get_desk", { deskId: "no-such-desk" })).toMatch(/does not exist/);
   }, 60_000);
 
   it("returns policy bytes whose hash the caller can recheck", async () => {
     if (!online) return;
-    const desk = await callText("get_desk", { deskId: "ebi" });
+    const desk = await callPayload("get_desk", { deskId: "ebi" });
     const policyHash = (JSON.parse(desk) as { policyHash: string }).policyHash;
-    const out = await callText("get_policy", { policyHash });
+    const out = await callPayload("get_policy", { policyHash });
     const parsed = JSON.parse(out) as { matches: boolean; policyJson: string };
     expect(parsed.matches).toBe(true);
     expect(parsed.policyJson).toContain("krexa.ual.policy/1");

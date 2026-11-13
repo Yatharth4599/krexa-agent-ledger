@@ -160,7 +160,7 @@ const EXTRACTORS: Record<Venue, (raw: string, asset: string) => PricePoint | und
 };
 
 export function isKnownVenue(source: string): source is Venue {
-  return source in EXTRACTORS;
+  return Object.hasOwn(EXTRACTORS, source);
 }
 
 /** Extract a price point, or undefined if this body does not carry one for this asset. */
