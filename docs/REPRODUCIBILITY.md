@@ -23,22 +23,28 @@ filter reports the filter's status. `set -o pipefail`, or capture the status bef
 
 ## Tested: a fresh clone in a clean environment
 
-Measured on 13 Nov 2026 at commit `425542c`, every row from the same clone, from `git clone` of
-the public repo into an empty directory, with `NEAR_SANDBOX_BIN_PATH`,
-`NEAR_SANDBOX_BINARY_PATH`, `NEARAI_API_KEY`, `FETCHER_SECRET_KEY` and `UAL_CONTRACT_ID` all
-unset. **Each exit status captured directly from the command, never through a pipe:**
-
-Commits after `425542c` are this file and the archive index the recorder keeps appending to.
-Neither is read by any command below, so re-running them at `HEAD` measures the same tree.
+Measured on 14 Nov 2026 at commit `fe155c1`, after the second security review merged and the
+contract was redeployed. Every row comes from the same clone, made with `git clone` of the public
+repo into an empty directory, with `NEAR_SANDBOX_BIN_PATH`, `NEAR_SANDBOX_BINARY_PATH`,
+`NEARAI_API_KEY`, `FETCHER_SECRET_KEY` and `UAL_CONTRACT_ID` all unset. **Each exit status
+captured directly from the command, never through a pipe:**
 
 | Command | Result |
 |---|---|
-| `./scripts/setup.sh` | **exit 0.** Installed deps, built the contract (316,817 byte wasm, sha256 `ecc7927f...`), fetched `neard 2.14.0`. |
-| `pnpm test` | **exit 0.** 433 tests: 77 Rust unit, 12 + 3 sandbox integration, 341 TypeScript (102 sdk, 79 scorecard, 53 verifier, 20 mcp, 6 experiments-ebi, 81 runtime). |
+| `./scripts/setup.sh` | **exit 0.** Installed deps, built the contract (319,605 byte wasm, sha256 `784a027c...`, byte for byte the code deployed to testnet), fetched `neard 2.14.0` after checking its pinned sha256. |
+| `pnpm test` | **exit 0.** 540 tests: 97 Rust unit, 12 + 3 sandbox integration, 428 TypeScript (120 sdk, 94 scorecard, 89 runtime, 67 verifier, 39 mcp, 9 web, 6 experiments-ebi, 2 archive, 2 fetcher). |
 | `pnpm demo` | **exit 0.** "demo complete: every assertion held". |
-| `pnpm attack-demo` | **exit 0.** "every attacking attempt was blocked, and every policy breach was recorded". It rewrites `docs/attack-demo.log`, which then differs from the committed copy by one line, the timestamp of the run. |
-| `pnpm ebi:report` | **exit 0**, and produced `docs/RESULTS.md` **byte-identical** to the committed one: `git diff` reported no change, sha256 `6f00c5e2...` in both checkouts. |
-| `pnpm web` | HTTP 200 on `/`, `/app.js`, `/style.css`, `/ual.js`, `/data/runs`, `/data/results-md` and `/data/runs/sim-2026-11-06154524-323p/run.json`. The run list held all five committed runs and the served results document named the 323 point one. |
+| `pnpm attack-demo` | **exit 0.** "every attacking attempt was blocked, and every policy breach was recorded", 12 attempts. It rewrites `docs/attack-demo.log`, which then differs from the committed copy by one line, the timestamp of the run. |
+| `pnpm ebi:report` | **exit 0**, and produced `docs/RESULTS.md` **byte-identical** to the committed one: `git diff` reported no change, and sha256 `bfaef9ce...` in both this clone and the development checkout. |
+| `pnpm web` | HTTP 200 on `/`, `/app.js`, `/style.css`, `/ual.js`, `/data/runs`, `/data/results-md` and `/data/runs/sim-2026-11-06154524-337p/run.json`. The run list held all six committed runs including the one the results come from, and all three security headers added by the review were present. |
+
+Two cross-checkout invariants, both confirmed: `pnpm verifier:codehash` gives
+`135a8442...` in this clone and in the development checkout, and `docs/RESULTS.md` hashes the
+same in both. The first is what makes a policy's pinned verifier hash mean anything; the second
+is SPEC.md M5's byte-identical regeneration.
+
+A judge's clone also carries `data/archive/index.jsonl` (1,925 lines at this measurement, and
+growing while the recorder runs), which is why `pnpm ebi:report` works immediately.
 
 ### A third way of measuring the wrong thing, caught the same day
 
@@ -70,22 +76,17 @@ caught it. Both unit tests and a careful reading of the function pass. Only runn
 a real clone fails. The ordering key now comes out of `run.json` and `latestRun` has six tests
 that set mtimes contradicting the right answer.
 
-Two further checks, because they are the ones that would quietly break:
-
-- **`pnpm verifier:codehash` is identical across checkouts** (`f1593918...`, and `dc66e5c0...`
-  before the review fixes landed in PR #2 changed `verify.ts`). If it were not,
-  policies pinning that hash would be invalid in one checkout and valid in another, and the
-  pinning would mean nothing.
-- **`docs/RESULTS.md` hashes identically** when regenerated from the same committed receipts in
-  a different directory. SPEC.md M5 asks for byte-identical regeneration and this is it.
+The verifier code hash has moved three times and each move invalidated the policy pinned before
+it: `dc66e5c0` before PR #2, `f1593918` after it, `135a8442` after the 13 Nov review. That
+friction is the point. A policy commits to the stance rules and tolerances it was written
+against, so changing them has to break the pin rather than silently redefine what a desk agreed
+to.
 
 ### What the fresh clone deliberately does not have
 
 A judge gets no `.env`, no `data/archive/raw/` (gitignored, it is bulk), no `.sandbox/` and no
-`node_modules`. What they do get is `data/archive/index.jsonl` (1,635 lines at this
-measurement, and growing while the recorder runs) and the
-run directories under `experiments/ebi/results`, which is why `pnpm ebi:report` works
-immediately on a clone.
+`node_modules`. What they do get is `data/archive/index.jsonl` and the run directories under
+`experiments/ebi/results`, which is why `pnpm ebi:report` works immediately on a clone.
 
 The verifier's real-payload extractor tests read `data/archive/raw/`, which is absent on a
 clone. They **skip rather than fail**, and print a warning saying so, so a reader can tell a
@@ -107,9 +108,13 @@ container is available.
 **Not covered.** A different OS or architecture, a different Node or Rust version than the
 pinned ones, and a genuinely empty toolchain cache. In particular:
 
-- `scripts/fetch-sandbox.sh` resolves `Darwin-arm64` here. It handles `Linux-x86_64` and
-  `Linux-arm64` by the same rule and the S3 layout is the same, but only the Darwin path has
-  been exercised.
+- `scripts/fetch-sandbox.sh` resolves `Darwin-arm64` here. Since the review it also checks a
+  pinned sha256 before unpacking, and all three pins (`Darwin-arm64`, `Darwin-x86_64`,
+  `Linux-x86_64`) were confirmed byte-exact against the S3 objects on 13 Nov 2026. Only the
+  Darwin-arm64 path has actually been run. **`Linux-arm64` has no pin and cannot get one**: that
+  platform 404s upstream for 2.14.0, so a container on ARM Linux needs `NEAR_SANDBOX_BIN_PATH`
+  pointing at a `neard` it built or fetched itself. The previous script appeared to support that
+  platform and would have failed at the download instead.
 - `rust-toolchain.toml` pins 1.99.1, so `rustup` will fetch it in a container. That download
   has not been timed and the container would need `rustup` present.
 - `cargo-near` would be installed by `setup.sh` on first run, which takes several minutes.
