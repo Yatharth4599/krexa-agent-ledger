@@ -94,3 +94,32 @@ Honestly, in rough order of how much:
   of equity, not the owner.
 - **At most 16 policies per desk, for the life of the desk.** A desk that needs a 17th policy
   needs a new desk. The cap bounds storage; there is no way to reclaim a slot.
+
+## The limit the 337 point run found, which no review raised
+
+**Price agreement counts as corroboration of a news claim, so timing substitutes for planting.**
+
+The verifier counts independent source *groups* that support the thesis, and an exchange whose
+24 hour move agrees with the direction counts as a supporting group. In the 337 point run one
+`single-source-fake` reached `k=4` and full size with exactly one planted outlet, because three
+exchanges happened to be drifting the right way. The verifier's own explanation records it:
+
+```
+synthetic-wire-a.example: NEWS stance SUPPORT is the Analyst's claim, not checked
+hyperliquid: 24h move 42 bps, agrees with LONG
+binance-public: 24h move 42 bps, agrees with LONG
+kraken-public: 24h move 27 bps, agrees with LONG
+4 supporting group(s) minus 0 contradicting gives k=4, size multiplier 10000 bps
+```
+
+- **Why it matters.** SPEC.md 2A.6 H4 predicted that an attacker would need to plant the same
+  fake across several declared groups. This is cheaper: wait for a tape that already agrees and
+  plant once. The pilot saw the same mechanism from the other side, where a contradicting tape
+  subtracted groups and saved the gate, and recorded it as luck
+  ([experiments/ebi/FINDINGS.md](../experiments/ebi/FINDINGS.md) point 4). It is the same coin.
+- **No mitigation in this build.** Counting price and news groups in one total is what makes the
+  size table simple, and separating them changes the policy schema and the size semantics, which
+  is not a freeze-day change.
+- **What it would take.** Require at least one *news* group for a news-driven thesis, or weight
+  price agreement below an independent outlet, or refuse any thesis whose only non-price support
+  is a single unattested outlet. All three are policy-schema changes and none has been tested.

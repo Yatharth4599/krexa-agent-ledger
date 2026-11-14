@@ -285,11 +285,86 @@ async function main(): Promise<void> {
       "SUPPORT",
     );
 
-  const FAKE = "SYNTHETIC ATTACK: BREAKING, Reuters reports a spot BTC allocation";
+  // A run tag inside the evidence text, because an item's `contentHash` is over the content and
+  // nothing else. PR #4 marks each counted item spent per desk, so byte-identical walkthrough
+  // evidence can only ever be counted once: the second run's bundles came back
+  // `R_EVIDENCE_USED` with k below the threshold and every open was refused. The tag is part of
+  // the synthetic text and is labelled as such, so it changes the hash without pretending to be
+  // anything it is not.
+  const RUN_TAG = `walkthrough ${new Date().toISOString()}`;
+  const FAKE = `SYNTHETIC ATTACK: BREAKING, Reuters reports a spot BTC allocation [${RUN_TAG}]`;
   const PRICE = JSON.stringify([
-    { universe: [{ name: "BTC", szDecimals: 5 }] },
+    { universe: [{ name: "BTC", szDecimals: 5 }], note: RUN_TAG },
     [{ midPx: "70000.0", markPx: "70000.0", oraclePx: "70000.0", prevDayPx: "69000.0", funding: "0.0000125", dayBaseVlm: "50000" }],
   ]);
+
+  // --- the desk has to start flat ---
+  //
+  // PR #4 caps a desk's open positions and requires a CLOSE to equal the whole open notional for
+  // the asset and venue. Leftovers from an earlier run therefore refuse every open as
+  // `R_MAX_OPEN_POSITIONS`, and the script then tries to record a fill against a rejected intent
+  // and dies. That is exactly what happened on 14 Nov 2026: three runs had each left a
+  // 250000000 position on desk `ebi`, the desk sat at its cap, and the re-run aborted.
+  const openNotional = (): bigint =>
+    (
+      view("get_open_positions", { desk_id: DESK }) as {
+        asset?: string;
+        venue?: string;
+        notionalUsd?: string;
+      }[]
+    )
+      .filter((p) => p.asset === "BTC" && p.venue === "hyperliquid")
+      .reduce((sum, p) => sum + BigInt(p.notionalUsd ?? "0"), 0n);
+
+  const leftover = openNotional();
+  if (leftover > 0n) {
+    console.log(`    desk is carrying ${leftover} micro-USD from an earlier run; flattening first`);
+    call(
+      "submit_intent",
+      {
+        desk_id: DESK,
+        intent: {
+          clientId: `testnet-walkthrough-flatten-${Date.now()}`,
+          venue: "hyperliquid",
+          asset: "BTC",
+          side: "CLOSE",
+          notionalUsd: leftover.toString(),
+          maxSlippageBps: 30,
+          quoteRef: null,
+        },
+        prev_hash: head().hash,
+        equity_usd: "10000000000",
+        decision_hash: null,
+        ai_sig_hash: null,
+        evidence_seq: null,
+      },
+      { signAs: TRADER },
+    );
+    // An approved CLOSE does not move the books: `record_fill` is what applies to positions.
+    // Without this the desk stays at its cap, every open is still refused
+    // `R_MAX_OPEN_POSITIONS`, and the script dies recording a fill against a rejected intent.
+    const flatSeq = (view("get_head", { desk_id: DESK }) as { seq: number }).seq;
+    call(
+      "record_fill",
+      {
+        desk_id: DESK,
+        intent_seq: flatSeq,
+        fill: {
+          kind: "SIMULATED",
+          simulated: true,
+          ref: `paper:testnet-walkthrough:flatten:${Date.now()}`,
+          price: "70000",
+          notionalUsd: leftover.toString(),
+          evidenceSha256: null,
+        },
+        prev_hash: head().hash,
+      },
+      { signAs: TRADER },
+    );
+    const stillOpen = openNotional();
+    if (stillOpen > 0n) throw new Error(`flatten did not clear the desk: ${stillOpen} still open`);
+    console.log("    desk is flat");
+  }
 
   // --- beat one: one source, refused ---
   const one = [sign(FAKE, "newswire-a.example", "NEWS", "newswire-a")];
@@ -431,6 +506,14 @@ async function main(): Promise<void> {
     },
     { signAs: TRADER },
   );
+  // A CLOSE has to equal the whole open notional for the asset and venue, or the contract
+  // refuses it as `R_CLOSE_SIZE_MISMATCH` (PR #4: a one micro-USD CLOSE used to wipe the entire
+  // position). So the size is read from the chain rather than assumed. The hard-coded 250000000
+  // this used to send was refused on a public chain in the one beat whose point is that an exit
+  // always goes through.
+  const toClose = openNotional();
+  if (toClose === 0n) throw new Error("nothing open to close; the exit beat needs a position");
+  console.log(`    exit closes the whole position: ${toClose} micro-USD`);
   call(
     "submit_intent",
     {
@@ -440,7 +523,7 @@ async function main(): Promise<void> {
         venue: "hyperliquid",
         asset: "BTC",
         side: "CLOSE",
-        notionalUsd: "250000000",
+        notionalUsd: toClose.toString(),
         maxSlippageBps: 30,
         quoteRef: null,
       },

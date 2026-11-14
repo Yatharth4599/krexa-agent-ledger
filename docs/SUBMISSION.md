@@ -26,33 +26,33 @@ Written so there is something to react to rather than a blank field at 20:00 on 
 Neither has been sent anywhere. Both still count as "needed from YK" below until he approves or
 rewrites them.
 
-### Idea text, draft (1,853 characters, limit 2,000)
+### Idea text, draft (1,966 characters, limit 2,000)
 
-> An LLM trading swarm will act on whatever text reaches it. Published work shows a single
-> fabricated headline moving a whole swarm of trading agents at once, and peer debate between
-> agents does not catch it.
+> An LLM trading swarm acts on whatever text reaches it. Published work shows one fabricated
+> headline moving a whole swarm at once, and peer debate between agents does not catch it.
 >
-> Evidence-Bound Intents makes a trading agent cite its sources. Every Analyst signal has to
-> reference evidence that was fetched, hashed and signed before the decision. A deterministic
-> verifier recomputes the indicators from the raw attested bodies and counts how many
-> independent source groups actually corroborate the claim, and that count sets the size: one
-> source buys nothing and is refused as R_UNCORROBORATED, two gets half size, three or more gets
-> full size. Every decision becomes a hash-chained receipt on NEAR, rejections included, so an
-> allocator can audit what an agent was refused as well as what it did.
+> Evidence-Bound Intents makes a trading agent cite its sources. Every signal must reference
+> evidence fetched, hashed and signed before the decision. A deterministic verifier recomputes
+> the indicators from the raw bodies and counts how many independent source groups corroborate
+> the claim, and that count sets the size: one source trades nothing and is refused as
+> R_UNCORROBORATED, two gets half size, three or more gets full. Every decision becomes a
+> hash-chained receipt on NEAR, rejections included, so an allocator can audit what an agent was
+> refused as well as what it did.
 >
-> NEAR does three specific things here. Function-call access keys let each agent write to the
-> ledger while being unable to transfer funds or call any other contract, which the integration
-> tests prove by trying. The contract enforces the policy the owner committed in advance, so the
-> operator's own server is not the judge of its own track record. One sub-account per agent makes
-> each actor traceable.
+> NEAR does three things here. Function-call access keys let each agent write to the ledger while
+> being unable to transfer funds or call another contract, which the integration tests prove by
+> trying. The contract enforces the policy the owner committed in advance, so the operator's
+> server is not the judge of its own record. One sub-account per agent keeps each actor traceable.
 >
-> The result is paper, scripted rather than model-driven, and mixed. Over 323 archived decision
-> points the fabrication moved the plain desk and the gated desk into the same 24 long positions.
-> The gate refused 17 of them and 7 went through, mostly fakes planted across several declared
-> sources, which is the limit we wrote down before building anything. It cost 20.8% of clean-run
-> intents. A hierarchical baseline took none of the 33 attacks, but it also opened long once in
-> 290 clean decisions, so its zero is a desk that was not taking that trade rather than a defence
-> that held. docs/RESULTS.md reports all of it, limits first.
+> The result is paper, scripted rather than model-driven, and mixed. Over 337 archived decision
+> points the fabrication moved both the plain and the gated desk into the same 25 long positions.
+> The gate refused 20 and 5 got through, at a cost of 19.8% of clean-run intents. Four of the
+> five were planted across several declared sources, the limit we wrote down before building
+> anything. The fifth was not: one fake reached full size because three exchanges happened to be
+> drifting the right way and the verifier counts price agreement as corroboration, so timing
+> substitutes for planting. docs/THREAT_MODEL.md carries that as a limit with no mitigation here.
+> A hierarchical baseline took none of the 34 attacks, but it went long once in 300 clean
+> decisions, so its zero is not a defence. docs/RESULTS.md has all of it, limits first.
 
 ### X post, draft
 

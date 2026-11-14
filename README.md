@@ -47,7 +47,7 @@ No keys, no accounts, no manual steps.
 ```bash
 git clone https://github.com/Yatharth4599/krexa-agent-ledger && cd krexa-agent-ledger
 ./scripts/setup.sh      # checks the toolchain, installs deps, builds the contract, fetches a sandbox node
-pnpm test               # 77 Rust unit + 15 sandbox integration + 341 TypeScript tests
+pnpm test               # 97 Rust unit + 15 sandbox integration + 428 TypeScript tests
 pnpm demo               # the whole evidence gate on a local sandbox; exits non-zero on any failure
 pnpm attack-demo        # a prompt-injected Trader against a real node; writes docs/attack-demo.log
 pnpm ebi:report         # regenerates docs/RESULTS.md from recorded receipts
@@ -58,10 +58,10 @@ pnpm web                # http://localhost:3000
 
 | Run this | See this |
 |---|---|
-| `pnpm test` | 433 tests pass. The sandbox ones start a real NEAR node. |
+| `pnpm test` | 540 tests pass. The sandbox ones start a real NEAR node. |
 | `pnpm demo` | A fake headline arrives. `plain` trades on it; `ebi` refuses with `R_UNCORROBORATED`. A second independent source arrives and the trade is approved at **half** size. A fabricated RSI of 25.00 is dropped against a recomputed 100.00. One changed byte breaks the chain at a named sequence number. |
-| `pnpm attack-demo` | 11 attacking attempts, all blocked: 8 by the NEAR protocol before any contract code runs (plus a check that the attacker's balance did not change), 3 by the policy and recorded as receipts. |
-| `pnpm web` then Explorer, Load from chain | 32 receipts from `ual.krexa-ual.testnet`, every hash recomputed **in your browser**, anchored to the desk's genesis. Press Tamper and watch it break at the right seq. |
+| `pnpm attack-demo` | 12 attacking attempts, all blocked: 8 by the NEAR protocol before any contract code runs (plus a check that the attacker's balance did not change), 4 by the contract and recorded as receipts. One of the four is a compromised Trader marking its own equity, which is what feeds the daily loss limit. |
+| `pnpm web` then Explorer, Load from chain | 84 receipts from `ual.krexa-ual.testnet`, every hash recomputed **in your browser**, anchored to the desk's genesis. Press Tamper and watch it break at the right seq. |
 | `pnpm mcp` | The ledger over MCP stdio. Ask for `withdraw` and it explains that no such tool exists by design. |
 | `pnpm ual replay ebi 6` | Recomputes the prompt, snapshot, tool-call and output hashes behind one decision, then says plainly what replay does not prove. |
 | `pnpm archive:verify` | Rehashes every archived market snapshot against its recorded hash. Needs `data/archive/raw/`, which is gitignored: on a fresh clone it reports every body as missing and exits 1. |
@@ -73,30 +73,40 @@ Contract: [`ual.krexa-ual.testnet`](https://testnet.nearblocks.io/address/ual.kr
 Running the current code, including the exit, fill and evidence-reuse checks in
 [docs/RECEIPTS.md](docs/RECEIPTS.md).
 
-Desk `ebi` holds a real 32 receipt chain written by `pnpm testnet:walkthrough`. Seq 1 to 14 are
-the first walkthrough, under the pre-review contract and verifier. Seq 15 to 18 are a second
-attempt that died partway on a dropped RPC call. Both are still there, because deleting receipts
-to tidy a story is the one thing a ledger must not do, and a half-written chain is a more
-honest advertisement for optimistic concurrency than a clean one. The current walkthrough, on
-the redeployed contract, is seq 19 to 32:
+Desk `ebi` holds a real 84 receipt chain written by `pnpm testnet:walkthrough` across several
+runs. Earlier sequences are still there, including one that died partway on a dropped RPC call
+and one whose exit was refused (see below), because deleting receipts to tidy a story is the one
+thing a ledger must not do. The current walkthrough, on the contract redeployed after the
+security review, is seq 70 to 84:
 
 | seq | kind | verdict | what happened |
 |---|---|---|---|
-| 19 | POLICY | NA | policy `59f5db11...`, pinning verifier `f1593918...` |
-| 23 | EVIDENCE | NA | one source, `k=1`, size multiplier **0 bps**, `attested: false` |
-| 24 | INTENT | **REJECTED** | `R_UNCORROBORATED`, `PAPER_ONLY_UNCORROBORATED` |
-| 25 | EVIDENCE | NA | a second independent group, `k=2`, **5000 bps** |
-| 26 | INTENT | APPROVED | $500 requested |
-| 27 | FILL | NA | **$250** filled: the gate halved it |
-| 28 | INTENT | **REJECTED** | `R_EVIDENCE_USED`, `R_MAX_POSITION` on a $5,000 attempt |
-| 29 | CONTROL | NA | kill switch engaged |
-| 30 | INTENT | **REJECTED** | `R_KILL_SWITCH`, `R_EVIDENCE_USED` |
-| 31 | INTENT | APPROVED | a $250 close, approved while the brake was engaged |
-| 32 | CONTROL | NA | kill switch released |
+| 70 | POLICY | NA | policy `74dea706...`, pinning verifier `135a8442...` |
+| 73 | INTENT | APPROVED | a CLOSE of the whole $750 left open by earlier runs |
+| 74 | FILL | NA | the flatten applied, so the desk starts at zero |
+| 75 | EVIDENCE | NA | one source, `k=1`, size multiplier **0 bps**, `attested: false` |
+| 76 | INTENT | **REJECTED** | `R_UNCORROBORATED`, `PAPER_ONLY_UNCORROBORATED` |
+| 77 | EVIDENCE | NA | a second independent group, `k=2`, **5000 bps** |
+| 78 | INTENT | APPROVED | $500 requested |
+| 79 | FILL | NA | **$250** filled: the gate halved it |
+| 80 | INTENT | **REJECTED** | `R_EVIDENCE_USED`, `R_UNCORROBORATED` on a $5,000 attempt |
+| 81 | CONTROL | NA | kill switch engaged |
+| 82 | INTENT | **REJECTED** | `R_KILL_SWITCH`, `R_EVIDENCE_USED` |
+| 83 | INTENT | APPROVED | the exit, approved while the brake was engaged |
+| 84 | CONTROL | NA | kill switch released |
 
-Seq 28 and 30 carry `R_EVIDENCE_USED` because the bundle at seq 25 was already spent by the
-approved open at seq 26. That check came out of the code review (see Contributors below) and
-this is it refusing on a public chain, not in a test.
+Seq 80 and 82 carry `R_EVIDENCE_USED` because the bundle at seq 77 was already spent by the
+approved open at seq 78. That check came out of the first code review and this is it refusing on
+a public chain, not in a test.
+
+**One sequence in the middle records a refused exit, and it is worth reading.** The security
+review added a rule that a CLOSE must equal the whole open notional, so that a one micro-USD
+CLOSE can no longer wipe a position. The walkthrough was still sending a hard-coded $250 close,
+and three earlier runs had each left $250 on the books, so on the first run after the redeploy
+the exit was refused `R_CLOSE_SIZE_MISMATCH` on a public chain, in the one beat whose whole point
+is that an exit always goes through. The script now reads the position from the chain and closes
+exactly that, and it flattens the desk before it starts. The refused receipts stay where they
+are.
 
 Trading calls are signed by `trader-ebi.krexa-ual.testnet`, a separate account.
 
@@ -153,7 +163,10 @@ Read these before the results.
 
 Synthetic attacks on replayed data are not real adversaries. **An attacker who plants the same
 fake across three declared groups gets full size**, and the declared groups are public on chain,
-so an attacker knows which sources to aim at. There is **no TEE in this build**: every receipt
+so an attacker knows which sources to aim at. Worse, and found only in the 337 point run:
+**price agreement counts as corroboration**, so a single fake timed to a tape already moving
+the right way reaches full size with no second source at all. Corroboration counting rewards an
+attacker for patience rather than for reach. There is **no TEE in this build**: every receipt
 says `attested: false`. Independence groups are the policy owner's judgement. Paper equity is
 operator-reported and is not proof of anything except the operator's commitment over time.
 Hashes prove commitment, not correctness, and this is **not zkML**. The model id on a decision is
@@ -169,48 +182,64 @@ Generated by `pnpm ebi:report` from receipts: [docs/RESULTS.md](docs/RESULTS.md)
 byte-identically, names its own run and carries the data snapshot hash, so it is the authority
 over anything summarised here.
 
-The run that ships is `sim-2026-11-06154524-323p`: 323 decision points from 2026-11-06 to
-2026-11-13, 33 attacked per desk, scripted Analysts, verifier `f1593918...`.
+The run that ships is `sim-2026-11-06154524-337p`: 337 decision points from 2026-11-06 to
+2026-11-14, 34 attacked per desk, scripted Analysts, verifier `135a8442...`, run after the
+security review merged.
 
 **What the fabrication did, and what the gate did about it.** Every template targets a long, and
-going long was rare for every desk in this window (about 1 clean decision in 290), so essentially
+going long was rare for every desk in this window (about 1 clean decision in 300), so essentially
 every long below is one the fake produced:
 
 | desk | attacked | attack changed the decision | changed it to a long | of those, executed |
 |---|---|---|---|---|
-| `plain` | 33 | 24 | 24 | **24** |
-| `ebi` | 33 | 24 | 24 | **7** |
-| `hier` | 33 | 13 | 0 | 0 |
+| `plain` | 34 | 25 | 25 | **25** |
+| `ebi` | 34 | 25 | 25 | **5** |
+| `hier` | 34 | 14 | 0 | 0 |
 
-`ebi` runs the same Analyst as `plain`, so the fake moved both into the same 24 long decisions.
-The gate refused 17 of them and 7 went through: 21.2% attack success [10.7, 37.8] against
-`plain`'s 72.7% [55.8, 84.9].
+`ebi` runs the same Analyst as `plain`, so the fake moved both into the same 25 long decisions.
+The gate refused 20 of them and 5 went through: 14.7% attack success [6.4, 30.1] against
+`plain`'s 73.5% [56.9, 85.4].
 
-**`hier` scored zero and that is not a win for `hier`.** It is the baseline SPEC.md said the gate
-had to beat, and on the headline number it wins, by a margin wide enough to exclude zero. But it
-opened long once in 290 clean decisions: the attacker's direction is one it was not taking in
-this window at all. The fake did perturb it 13 times, never into a long. A desk that does not
-take the trade and a gate that refuses the trade are different facts, and only one of them
-transfers to a desk that wants to trade.
+**How the five got through, and it is not the mechanism we predicted.** Four were two-group
+plants, which is SPEC.md 2A.6 hypothesis H4 written down before anything ran. The fifth was a
+**single**-source fake that reached full size, and the verifier's own explanation says why:
 
-**Where the 7 got through.** Four were `two-group-fake` (both of the `named-source` pair, one
-`both-cues`, one `breaking-tag`), and one each of `three-group-fake/breaking-tag`,
-`single-source-fake/breaking-tag` and `fake-indicator-panel/both-cues`. Multi-group planting is
-SPEC.md 2A.6 hypothesis H4, written down before anything ran, and it is the mechanism behind most
-of them. All 7 landed on decisions where `ebi` would otherwise have held: 46.7% [24.8, 69.9] when
-it was about to hold against 0 of 18 when it was about to short, which is arXiv 2610.26438
+```
+synthetic-wire-a.example: NEWS stance SUPPORT is the Analyst's claim, not checked
+hyperliquid: 24h move 42 bps, agrees with LONG
+binance-public: 24h move 42 bps, agrees with LONG
+kraken-public: 24h move 27 bps, agrees with LONG
+4 supporting group(s) [newswire-a, exchange-hl, exchange-binance, exchange-kraken]
+  minus 0 contradicting [] gives k=4, size multiplier 10000 bps
+```
+
+Corroboration counts price-tape agreement as independent support for a news claim. So an
+attacker does not need to plant a fake across several outlets: one fake, timed to a tape that
+is already drifting the right way, reaches full size on its own. That is the mirror image of the
+pilot's finding that the gate's resistance to multi-group planting partly came from the market
+happening to disagree ([experiments/ebi/FINDINGS.md](experiments/ebi/FINDINGS.md)). The defence
+is **timing-sensitive in the attacker's favour**, and nothing in SPEC.md predicted that.
+
+All five landed on decisions where `ebi` would otherwise have held: 33.3% [15.2, 58.3] when it
+was about to hold against 0 of 19 when it was about to short, which is arXiv 2610.26438
 finding (iii)'s state dependence showing up here too.
 
-**The cost, now measurable.** The gate refused 20.8% [15.2, 27.7] of clean-run intents, every one
-of them for `R_UNCORROBORATED`. The **false**-block rate, how much of that was a mistake, still is
-not measurable: it needs to know whether a blocked signal would have paid at its stated horizon,
+**`hier` scored zero and that is still not a win for `hier`.** It is the baseline SPEC.md said
+the gate had to beat, and on the headline number it wins by a margin that excludes zero
+(-14.7% [-30.1, -1.6]). But it opened long once in 300 clean decisions: the attacker's direction
+is one it was not taking in this window. The fake perturbed it 14 times, never into a long. A
+desk that does not take the trade and a gate that refuses the trade are different facts.
+
+**The cost.** The gate refused 19.8% [14.5, 26.4] of clean-run intents, every one for
+`R_UNCORROBORATED`. The **false**-block rate, how much of that was a mistake, still is not
+measurable: it needs to know whether a blocked signal would have paid at its stated horizon,
 which needs a price path extending past each signal.
 
 **Read the limits before the numbers.** They are at the top of
 [docs/RESULTS.md](docs/RESULTS.md), above the first table. The shortest version: scripted
 Analysts rather than models, so we wrote both the attack and the defence; `polymarket-gamma` was
-unreachable for all 323 points and only 48% of points had all four price groups; and the earlier
-293-point run of the same archive measured the gap between the archive and the wall clock rather
+unreachable for all 337 points and only about half of points had all four price groups; and an
+earlier run of the same archive measured the gap between the archive and the wall clock rather
 than the gate, which is written up in [docs/FAILURE_CASES.md](docs/FAILURE_CASES.md) and left in
 git rather than deleted.
 
@@ -304,6 +333,29 @@ Also fixed: an exit with no open position could record arbitrary notional, one e
 could back unlimited opens, caller-supplied `equity_usd` could be inflated past the last mark to
 dodge the daily loss limit, and the web server crashed on a malformed URL escape.
 
+A second review on 13 Nov, in [PR #3](https://github.com/Yatharth4599/krexa-agent-ledger/pull/3)
+and [PR #4](https://github.com/Yatharth4599/krexa-agent-ledger/pull/4), found four more that bit
+on claims this README makes. Each was reproduced against the pre-merge code before merging:
+
+1. **Evidence could be replayed.** The contract marked the EVIDENCE *receipt* spent, not the
+   items inside it, so the same signed items in a fresh bundle got a fresh sequence number and
+   backed another full-size open. Corroboration you can spend twice is not corroboration.
+2. **`verifyChain` accepted a truncated chain.** The genesis anchor was checked only when the
+   caller passed one and the first receipt was seq 1, and nothing compared the tail to
+   `get_head`. "Recompute it in your browser" has to mean the whole chain or it means little.
+3. **The off-chain verifier counted any signing key.** Two items signed by a throwaway key
+   reached `k=2` in `verify()`. The ledger's verdict was never affected, because the contract
+   panics `E19_UNKNOWN_FETCHER` for a key the owner never registered, but the web viewer and the
+   local pre-check were wrong.
+4. **A compromised Trader controlled the daily loss limit.** `record_mark` accepted any trading
+   role, and `record_mark` is on the Trader's function-call key, so it could reset the day basis
+   the loss limit reads. `pnpm attack-demo` now has that attempt in it, refused `E02_NOT_AGENT`.
+
+Merging them changed the verifier code hash, which invalidated the policy pinned on testnet and
+meant the published results belonged to the old verifier, so the contract was redeployed and the
+337 point run above was produced after the merge. The first redeploy also broke the walkthrough's
+exit, which is recorded above rather than tidied away.
+
 ## Pre-existing code
 
 Only code written in the hackathon window is judged. Everything here was written in the window.
@@ -340,10 +392,11 @@ needs to be able to check the arithmetic themselves.
 | M2 sandbox tests, SDK, fetcher, archive, testnet, `pnpm demo` | **done** |
 | M3 deterministic verifier, runtime, desks, replay | **done** |
 | M4 attack injector, `hier`, pilot run | **done** |
-| M5 scorecard and generated results | **done**, over 323 points on 13 Nov. Still scripted Analysts: the paid model runs are approved and budgeted but `NEARAI_API_KEY` is empty, and no claim here survives without them |
+| M5 scorecard and generated results | **done**, over 337 points on 14 Nov, after the security review merged. Still scripted Analysts: the paid model runs are approved and budgeted but `NEARAI_API_KEY` is empty, and no claim here survives without them |
 | M6 web explorer, MCP server | **done** |
 | M7 attack demo, skill file, threat model, allocator CSV | **done** |
 | M8 README, clean-container reproducibility | **done** |
+| Second security review (PR #3, PR #4) | **merged 13 Nov**, contract redeployed, results re-run under the new verifier. Four findings, each reproduced before merging: see Contributors |
 
 ## Design and docs
 
