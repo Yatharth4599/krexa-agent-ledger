@@ -152,6 +152,14 @@ function problems(f: Fields): string[] {
     const named = /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/.test(near);
     const implicit = /^[0-9a-f]{64}$/.test(near);
     if (!named && !implicit) out.push(`nearAddress is not a valid NEAR account id: ${near}`);
+    // A mixed-case Ethereum address is the near miss worth naming: EIP-55 checksumming is
+    // normal everywhere else and makes the id invalid here.
+    if (/^0x[0-9a-fA-F]{40}$/.test(near) && near !== near.toLowerCase()) {
+      out.push(
+        "nearAddress looks like a checksummed Ethereum address. NEAR account ids are " +
+          "lowercase only, so an eth-implicit id has to be written all lowercase.",
+      );
+    }
     if (near !== near.toLowerCase()) out.push("nearAddress must be lowercase.");
     // The prize is paid on mainnet. A testnet account here is the one mistake in this file
     // that would be both easy to make and impossible to fix afterwards.
@@ -207,6 +215,24 @@ async function main(): Promise<void> {
   const send = process.argv.includes("--send");
   const f = readFields();
 
+  // Valid but risky values get a warning rather than a refusal. The payload is YK's to send.
+  const warnings: string[] = [];
+  if (/^0x[0-9a-f]{40}$/.test(f.nearAddress ?? "")) {
+    warnings.push(
+      "nearAddress is an eth-implicit account (NEP-518). It is a valid NEAR account id and can\n" +
+        "    receive the prize, but it is created with no access keys: spending from it needs the\n" +
+        "    Ethereum-signature wallet contract and usually a relayer, because the account cannot\n" +
+        "    pay its own gas. A named *.near account from a wallet is recoverable from a seed\n" +
+        "    phrase and needs none of that.",
+    );
+  }
+  if (/^[0-9a-f]{64}$/.test(f.nearAddress ?? "")) {
+    warnings.push(
+      "nearAddress is a NEAR implicit account. Valid, but the only way to control it is the key\n" +
+        "    file you generated: there is no seed phrase and no recovery.",
+    );
+  }
+
   const bad = problems(f);
   if (bad.length > 0) {
     console.error(`\n${bad.length} field problem${bad.length === 1 ? "" : "s"}:\n`);
@@ -232,6 +258,11 @@ async function main(): Promise<void> {
     consent: true,
   };
   const body = JSON.stringify(payload);
+
+  if (warnings.length > 0) {
+    console.log("");
+    for (const w of warnings) console.log(`  warning: ${w}`);
+  }
 
   console.log("\n==================== payload ====================\n");
   console.log(JSON.stringify(payload, null, 2));
