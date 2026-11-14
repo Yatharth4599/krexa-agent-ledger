@@ -8,7 +8,7 @@ independent sources agree. Every action, **including every refusal**, is recorde
 hash-chained ledger anyone can recompute in a browser without trusting us.
 
 Built for NEAR HACKATHON (window 2026-10-19 to 2026-11-14). Tracks: `swarms` (primary),
-`defi` (secondary). Unaudited. Testnet only. Paper only.
+`defi` and `security`. Unaudited. Testnet only. Paper only.
 
 ## The problem
 

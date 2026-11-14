@@ -11,7 +11,11 @@
   "leadName": "",
   "email": "",
   "size": "2 - 4",
-  "tracks": ["swarms", "defi"],
+  "tracks": [
+    "swarms",
+    "defi",
+    "security"
+  ],
   "nearAddress": "",
   "projectUrl": "https://github.com/Yatharth4599/krexa-agent-ledger",
   "demoUrl": "",

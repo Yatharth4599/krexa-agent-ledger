@@ -13,12 +13,20 @@ explicit yes, once, per SPEC.md section 20 and the safety rules.
 |---|---|---|
 | Public repo URL | `https://github.com/Yatharth4599/krexa-agent-ledger` | yes |
 | Team size | `2 - 4` | yes, 7 Nov 2026, after codingstark-dev's code review was merged |
-| Tracks | `swarms` primary, `defi` secondary | yes (SPEC.md 20) |
+| Tracks | `swarms` primary, then `defi` and `security` | yes, 14 Nov 2026 |
 | Testnet contract | `ual.krexa-ual.testnet` | yes |
 
 Team size is `2 - 4` rather than `1` because [@codingstark-dev](https://github.com/codingstark-dev)
 contributed the fixes in PR #2, including the raw-body hash check that closed a real forgery path.
 See the Contributors section of the README.
+
+`security` was added to the tracks on 14 Nov, after the second review. SPEC.md 20 left it open.
+What earns it: the function-call-key denials proven against a real node rather than asserted
+(`tests/integration/tests/fc_keys.rs`, plus 12 attempts in `pnpm attack-demo`, 8 refused by the
+protocol before contract code runs), two adversarial reviews merged with each finding reproduced
+against the pre-merge code, and a threat model that names the rows with **no mitigation** instead
+of omitting them. `open` was considered and dropped: it would add a submission without adding a
+claim.
 
 ## Drafts awaiting YK's yes
 
@@ -116,7 +124,6 @@ None of these can be guessed, and a wrong value here is worse than a late one.
 - [ ] Idea text (20 to 2000 characters), or approval of a draft
 - [ ] Consent to: "I agree that the organizers may use these details to review our submission and
       contact us about this hackathon."
-- [ ] Whether to add `security` and `open` to the track list, which SPEC.md 20 raises as an option
 - [ ] Demo video (under 2 minutes)
 - [ ] Hosted demo URL, if there is one. Optional; a local-only demo is eligible (Q-012).
 
